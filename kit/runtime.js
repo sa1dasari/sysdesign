@@ -101,12 +101,36 @@
   var DEFAULTS = {};
   function onChange(fn) { listeners.push(fn); }
   function readsSim(row) { return typeof row.expr === "string" && /\bm\./.test(row.expr); }
-  // Rows that do not read the simulation are computed first, so the simulation can use them.
-  // Rows that read it are computed after, against that run's result (never a stale one).
+  // Rows are computed in dependency order, wherever they sit on the page. A row that reads the
+  // simulation (m), directly or through another row, is computed after the simulation runs;
+  // every other row before it, so the simulation can use them.
+  var PLAN = null;
+  function rowPlan() {
+    if (PLAN) return PLAN;
+    var by = {}, order = [], state = {}, sim = {};
+    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id) by[row.id] = row; }); });
+    function visit(row) {
+      if (state[row.id] === 2) return;
+      if (state[row.id] === 1) { fail("rows depend on each other in a loop at " + row.id); return; }
+      state[row.id] = 1;
+      var uses = readsSim(row), re = /\br\.(\w+)/g, mm, t = typeof row.expr === "string" ? row.expr : "";
+      while ((mm = re.exec(t))) if (by[mm[1]]) { visit(by[mm[1]]); if (sim[mm[1]]) uses = true; }
+      sim[row.id] = uses; state[row.id] = 2; order.push(row);
+    }
+    Object.keys(by).forEach(function (id) { visit(by[id]); });
+    return PLAN = { order: order, sim: sim };
+  }
+  // Does this expression depend on the simulation, directly or through a row?
+  function needsSim(expr) {
+    if (typeof expr !== "string") return false;
+    if (/\bm\./.test(expr)) return true;
+    var plan = rowPlan(), re = /\br\.(\w+)/g, mm;
+    while ((mm = re.exec(expr))) if (plan.sim[mm[1]]) return true;
+    return false;
+  }
   function computeRows(simPass, m) {
-    (SPEC.sections || []).forEach(function (s) {
-      (s.rows || []).forEach(function (row) { if (row.id && readsSim(row) === simPass) S.r[row.id] = val(row.expr, m); });
-    });
+    var plan = rowPlan();
+    plan.order.forEach(function (row) { if (!!plan.sim[row.id] === simPass) S.r[row.id] = val(row.expr, m); });
   }
   function archSection() { return (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0]; }
   function recompute() {
@@ -145,7 +169,7 @@
       inn[id].forEach(function (e) { inflow += flow[e._k] || 0; });
       var inst = n.instances != null ? Math.max(0, val(n.instances)) : 1;
       var cap = n.cap != null ? val(n.cap) : Infinity;
-      var total = inst * cap;
+      var total = inst === 0 ? 0 : inst * cap; // a dead node has no capacity, even if its cap is unlimited
       var acc = Math.min(inflow, total);
       var rho = total === Infinity ? 0 : total > 0 ? inflow / total : (inflow > 0 ? 9 : 0);
       var svc = n.ms != null ? val(n.ms) : 0;
@@ -158,7 +182,8 @@
       var outs = out[id], eq = outs.filter(function (e) { return e.share == null && !e.call && !e.async; }).length;
       outs.forEach(function (e) {
         var sh = e.share != null ? val(e.share) : (e.call || e.async) ? 1 : 1 / Math.max(1, eq);
-        if (e.miss) sh *= (1 - r.hit);
+        // a cache answers hits itself: every route onward carries only the misses
+        if (e.miss || (r.hit && !e.call && !e.async)) sh *= (1 - r.hit);
         var mult = e.mult != null ? val(e.mult) : 1;
         flow[e._k] = acc * sh * mult;
         res.edges[e._k] = { flow: flow[e._k], share: sh, mult: mult };
@@ -175,14 +200,15 @@
         var sh = res.edges[e._k].share, c = path(e.to);
         s += sh * c.s; l += sh * c.l; cover += sh;
       });
-      var hitShare = r.hit && alts.some(function (e) { return e.miss; }) ? r.hit : 0;
+      var hitShare = r.hit && alts.length ? r.hit : 0;
       s += hitShare; cover += hitShare;
       if (!alts.length) s = 1; else if (cover < 1) s += 1 - cover; // traffic with nowhere to go ends here, successfully
       calls.forEach(function (e) { // calls every request may make: all must succeed, latencies add
         var sh = res.edges[e._k].share, c = path(e.to);
         s *= (1 - sh) + sh * c.s; l += sh * c.l;
       });
-      return memo[id] = { s: s * r.accFrac, l: l };
+      // an overloaded queue makes requests wait (its backlog grows), it does not drop them
+      return memo[id] = { s: clamp(s * (by[id].kind === "queue" ? 1 : r.accFrac), 0, 1), l: l };
     }
     var srcs = nodes.filter(function (n) { return n.rps != null; }), tot = 0, ok = 0, lat = 0;
     srcs.forEach(function (n) {
@@ -209,7 +235,8 @@
 
   // One labelled slider bound to param c.id. It follows the param when a preset changes it.
   function slider(c, defStep) {
-    var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || defStep, "aria-label": c.label });
+    var whole = [c.value, c.min, c.max].every(function (v) { return v == null || v % 1 === 0; });
+    var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || (whole ? defStep : "any"), "aria-label": c.label });
     if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
     inp.value = c.log ? Math.log10(c.value) : c.value;
     inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); });
@@ -266,7 +293,7 @@
     return [h("div", { class: "grid g2" }, (s.items || []).map(function (f) {
       return h("div", { class: "card fail" }, h("h4", null, f.what),
         h("dl", null, h("dt", null, "What happens"), h("dd", { html: md(f.effect) }), h("dt", null, "Mitigation"), h("dd", { html: md(f.mitigation) })),
-        f.inject ? h("button", { class: "chip", style: "margin-top:12px", onclick: function () { applyPreset(f.inject); location.hash = "#" + (SPEC.sections.filter(function (x) { return x.type === "arch"; })[0] || {}).id; } }, "Inject in the simulation") : null);
+        f.inject && archSection() ? h("button", { class: "chip", style: "margin-top:12px", onclick: function () { applyPreset(f.inject); location.hash = "#" + (SPEC.sections.filter(function (x) { return x.type === "arch"; })[0] || {}).id; } }, "Inject in the simulation") : null);
     }))];
   };
 
@@ -365,7 +392,7 @@
     }
     var metricEls = {}, metricBar = h("div", { class: "metrics" });
     var defs = [
-      { id: "rps", label: "Offered load", get: function (m) { return si(m.rps) + " req/s"; } },
+      { id: "rps", label: "Offered load", get: function (m) { return si(m.rps) + " " + (s.loadUnit || "req/s"); } },
       { id: "err", label: "Failed requests", get: function (m) { return fmt(m.err, "pct"); }, cls: function (m) { return m.err > 0.05 ? "bad" : m.err > 0.001 ? "warn" : ""; } },
       { id: "lat", label: "Avg latency", get: function (m) { return fmt(m.lat, "ms"); }, cls: function (m) { return s.latencyBudget && m.lat > s.latencyBudget ? "warn" : ""; } },
       // bottleneck is null when no node has a finite capacity
@@ -479,6 +506,7 @@
     var t = [], i, v;
     if (log) {
       var a = Math.floor(Math.log10(lo)), b = Math.ceil(Math.log10(hi));
+      if (!isFinite(a) || !isFinite(b)) return t;
       for (i = a; i <= b; i++) [1, 2, 5].forEach(function (k) {
         v = k * Math.pow(10, i);
         if (v >= lo * 0.999 && v <= hi * 1.001 && (k === 1 || b - a <= 2)) t.push(v);
@@ -500,7 +528,7 @@
   builders.chart = function (s) {
     var W = 720, Hh = 330, ML = 60, MR = 18, MT = 34, MB = 50, PW = W - ML - MR, PH = Hh - MT - MB;
     var X = s.x || {}, Y = s.y || {}, ser = (s.series || []).slice(0, MAX_SERIES), arch = archSection();
-    var needSim = !!arch && ser.some(readsSim), clipId = "clip" + chartN++;
+    var needSim = !!arch && ser.some(function (e) { return needsSim(e.expr); }), clipId = "clip" + chartN++;
     var data = null, sx = null, sy = null, ylo = 0, yhi = 1, plot = null, clipRect = null;
     function points() {
       if (X.values) return X.values.slice();
@@ -541,6 +569,7 @@
       ylo = Y.min != null ? Y.min : all.length ? Math.min.apply(null, all) : Y.log ? 1 : 0;
       yhi = Y.max != null ? Y.max : all.length ? Math.max.apply(null, all) : ylo + 1;
       if (Y.log) {
+        if (!(ylo > 0)) ylo = all.length ? Math.min.apply(null, all) : 1;
         ylo = Math.pow(10, Math.floor(Math.log10(ylo))); yhi = Math.pow(10, Math.ceil(Math.log10(yhi)));
         if (yhi <= ylo) yhi = ylo * 10;
       } else {
@@ -803,7 +832,7 @@
     var btns = s.steps.map(function (st, i) { var b = h("button", { onclick: function () { cur = i; paint(); } }, (i + 1) + ". " + st.title); list.appendChild(h("li", null, b)); return b; });
     function paint() {
       btns.forEach(function (b, i) { b.className = i === cur ? "on" : ""; });
-      var st = s.steps[cur], prev = cur ? s.steps[cur - 1].state : {};
+      var st = s.steps[cur], prev = (cur && s.steps[cur - 1].state) || {};
       pane.innerHTML = "";
       pane.appendChild(h("div", { class: "call" }, st.call));
       if (st.result != null) pane.appendChild(h("p", { html: "→ <code>" + esc(st.result) + "</code>" }));

@@ -1,178 +1,4 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Social media news feed</title>
-<style>:root{
-  --bg:#f6f4ef; --panel:#fffdf8; --ink:#1c1b19; --mute:#6b675e; --line:#d9d4c7; --faint:#ece8dd;
-  --accent:#c2410c; --cool:#2f7d5b; --warm:#c98a0b; --hot:#c0392b;
-  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --serif:ui-serif,Georgia,"Times New Roman",serif;
-}
-:root[data-theme=dark]{
-  --bg:#141412; --panel:#1b1b18; --ink:#ece9e0; --mute:#9a958a; --line:#34322c; --faint:#24231f;
-  --accent:#fb923c; --cool:#4ca97e; --warm:#e0a526; --hot:#e5584a;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
-.wrap{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;max-width:1180px;margin:0 auto;padding:0 28px}
-nav.toc{position:sticky;top:0;align-self:start;height:100vh;padding:40px 0;overflow:auto;font-size:13px}
-nav.toc .brand{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:18px}
-nav.toc a{display:block;padding:5px 0 5px 12px;color:var(--mute);text-decoration:none;border-left:2px solid var(--line)}
-nav.toc a:hover{color:var(--ink)}
-nav.toc a.on{color:var(--ink);border-left-color:var(--accent)}
-nav.toc button{margin-top:18px;font:12px var(--mono);background:none;border:1px solid var(--line);color:var(--mute);padding:4px 10px;border-radius:6px;cursor:pointer}
-main{padding:56px 0 120px;min-width:0}
-header.hero{margin-bottom:56px}
-.kind{display:inline-block;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);padding:2px 8px;border-radius:99px}
-h1{font:600 clamp(32px,5vw,48px)/1.1 var(--serif);letter-spacing:-.02em;margin:16px 0 10px}
-.sub{font-size:19px;color:var(--mute);max-width:60ch;margin:0}
-.idea{margin:28px 0 0;padding:18px 22px;border-left:3px solid var(--accent);background:var(--panel);font:italic 20px/1.45 var(--serif);max-width:62ch}
-.idea small{display:block;font:600 11px var(--mono);font-style:normal;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
-section{margin:0 0 72px;scroll-margin-top:24px}
-section>h2{font:600 26px/1.2 var(--serif);margin:0 0 6px;letter-spacing:-.01em}
-section>h2 .n{font:500 12px var(--mono);color:var(--accent);margin-right:10px;vertical-align:middle}
-section>.lede{color:var(--mute);margin:0 0 22px;max-width:64ch}
-p{margin:0 0 14px;max-width:68ch}
-code{font:.88em var(--mono);background:var(--faint);padding:1px 5px;border-radius:4px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
-.grid{display:grid;gap:14px}
-.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-.g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
-.card h3{font:600 12px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin:0 0 10px}
-.card ul{margin:0;padding-left:18px}
-.card li{margin:4px 0}
-.tag{font:11px var(--mono);color:var(--mute);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-right:6px}
-/* estimation */
-.est{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:14px}
-@media(max-width:820px){.est{grid-template-columns:1fr}}
-.inp{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin-bottom:14px;align-items:baseline}
-.inp label{font-size:14px}
-.inp output{font:13px var(--mono);color:var(--accent)}
-.inp input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent)}
-.rows{width:100%;border-collapse:collapse;font-size:14px}
-.rows td{padding:7px 0;border-bottom:1px solid var(--faint)}
-.rows td:last-child{text-align:right;font:14px var(--mono);white-space:nowrap}
-.rows .why{display:block;font-size:12px;color:var(--mute)}
-/* api + data */
-.ep{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline}
-.ep .m{font:600 12px var(--mono);padding:2px 8px;border-radius:5px;background:var(--faint)}
-.ep .m.POST,.ep .m.PUT,.ep .m.DELETE,.ep .m.PATCH{color:var(--accent)}
-.ep .p{font:14px var(--mono)}
-.ep .d{grid-column:2;color:var(--mute);font-size:14px}
-.ep pre{grid-column:2;margin:4px 0 0}
-pre{background:var(--faint);padding:10px 12px;border-radius:8px;overflow:auto;font:12.5px/1.5 var(--mono);margin:0}
-table.cols{width:100%;border-collapse:collapse;font:13px var(--mono)}
-table.cols td{padding:3px 8px 3px 0;vertical-align:top}
-table.cols td.t{color:var(--mute)}
-table.cols td.k{color:var(--accent);width:2.5em}
-table.cols td.nt{color:var(--mute);font-family:var(--sans);font-size:12px}
-.store{font:11px var(--mono);color:var(--mute);float:right}
-/* sim */
-.sim{padding:0;overflow:hidden}
-.sim .bar{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
-.chip{font:12px var(--mono);background:var(--faint);border:1px solid var(--line);color:var(--ink);padding:5px 10px;border-radius:99px;cursor:pointer}
-.chip:hover{border-color:var(--accent)}
-.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.stage{overflow-x:auto;padding:6px 8px}
-.stage svg{display:block;min-width:720px;width:100%;height:auto}
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));border-top:1px solid var(--line)}
-.metric{padding:12px 14px;border-right:1px solid var(--line)}
-.metric:last-child{border-right:0}
-.metric b{display:block;font:600 20px var(--mono)}
-.metric span{font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
-.metric.bad b{color:var(--hot)}
-.metric.warn b{color:var(--warm)}
-.ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 22px;padding:14px;border-top:1px solid var(--line)}
-.simnote{padding:12px 16px;border-top:1px solid var(--line);font-size:14px;color:var(--mute);min-height:3.4em}
-.simnote b{color:var(--ink)}
-.node rect.box{stroke:var(--ink);stroke-width:1.2;rx:8;fill:color-mix(in srgb,var(--hot) calc(var(--u)*100%),var(--panel))}
-.node.sel rect.box{stroke:var(--accent);stroke-width:2.4}
-.node.dead rect.box{stroke:var(--hot);stroke-dasharray:4 3}
-.node text{fill:var(--ink);font:600 14px var(--sans);pointer-events:none}
-.node text.s{font:12px var(--mono);fill:var(--mute)}
-.node:hover rect.box{stroke:var(--accent)}
-.node{cursor:pointer}
-.ubar{fill:var(--cool)}
-.ubar.warn{fill:var(--warm)}.ubar.hot{fill:var(--hot)}
-.edge{fill:none;stroke:var(--line);stroke-linecap:round}
-.edge.async{stroke-dasharray:5 4}
-.elabel{font:11.5px var(--mono);fill:var(--mute);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
-.dot{fill:var(--accent)}
-.dot.async{fill:var(--mute)}
-.detail{padding:14px 16px;border-top:1px solid var(--line);font-size:14px;display:grid;gap:4px 18px;grid-template-columns:auto 1fr}
-.detail dt{font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding-top:2px}
-.detail dd{margin:0}
-/* tradeoffs, failures, qa */
-.opt{display:flex;flex-direction:column;gap:6px}
-.opt.pick{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-.opt h4{margin:0;font:600 16px var(--serif)}
-.opt .badge{font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
-.pro::before{content:"+ ";color:var(--cool);font-family:var(--mono)}
-.con::before{content:"– ";color:var(--hot);font-family:var(--mono)}
-.q{margin:0 0 6px}
-.q summary{cursor:pointer;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;font-weight:600}
-.q[open] summary{border-bottom-left-radius:0;border-bottom-right-radius:0}
-.q .a{padding:12px 16px;border:1px solid var(--line);border-top:0;border-radius:0 0 10px 10px;background:var(--panel)}
-.fail h4{margin:0 0 6px;font:600 15px var(--sans)}
-.fail dl{margin:0;font-size:14px}.fail dt{font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-top:8px}.fail dd{margin:0}
-/* lld */
-.diagram{padding:10px;overflow-x:auto}
-.diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
-.cls rect{fill:var(--panel);stroke:var(--ink);stroke-width:1.2}
-.cls .hd{fill:var(--faint)}
-.cls text{font:12px var(--mono);fill:var(--ink)}
-.cls text.h{font:600 13px var(--sans)}
-.cls text.st{font:italic 10.5px var(--mono);fill:var(--mute)}
-.cls{cursor:pointer}
-.cls.sel rect.fr{stroke:var(--accent);stroke-width:2.4}
-.rel{stroke:var(--ink);fill:none;stroke-width:1.2}
-.rel.dash{stroke-dasharray:5 4}
-.rl{font:10.5px var(--mono);fill:var(--mute);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
-.life{stroke:var(--line);stroke-dasharray:4 4}
-.actor rect{fill:var(--panel);stroke:var(--ink);stroke-width:1.2;rx:6}
-.actor text{font:600 12.5px var(--sans);fill:var(--ink)}
-.msg{transition:opacity .2s}
-.msg.off{opacity:.22}
-.msg line,.msg path{stroke:var(--ink);fill:none;stroke-width:1.3}
-.msg.ret line{stroke-dasharray:5 4}
-.msg.on line,.msg.on path{stroke:var(--accent);stroke-width:2}
-.msg text{font:12px var(--mono);fill:var(--ink)}
-.msg.on text{fill:var(--accent)}
-.st rect.sb{fill:var(--panel);stroke:var(--ink);stroke-width:1.2}
-.stn text{font:600 13px var(--sans);fill:var(--ink)}
-.stn.cur rect.sb{fill:var(--ink)}.stn.cur text{fill:var(--bg)}
-.stn.term rect.sb{stroke-width:2.6}
-.tr{stroke:var(--ink);fill:none;stroke-width:1.2}
-.tr.live{stroke:var(--accent);stroke-width:2.2}
-.tl{font:11px var(--mono);fill:var(--mute);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
-.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
-.ctl .grow{flex:1;color:var(--mute);font-size:14px;min-width:200px}
-.steps{display:grid;grid-template-columns:220px minmax(0,1fr);}
-@media(max-width:820px){.steps{grid-template-columns:1fr}}
-.steps ol{list-style:none;margin:0;padding:8px;border-right:1px solid var(--line);max-height:420px;overflow:auto}
-.steps li button{width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:7px 10px;font:12.5px var(--mono);color:var(--mute);cursor:pointer}
-.steps li button.on{background:var(--ink);color:var(--bg)}
-.steps .pane{padding:16px 18px}
-.steps .call{font:14px var(--mono);margin:0 0 8px}
-.kv{width:100%;border-collapse:collapse;font:13px var(--mono);margin-top:10px}
-.kv td{padding:4px 8px;border-bottom:1px solid var(--faint);vertical-align:top}
-.kv td:first-child{color:var(--mute);width:34%}
-.kv tr.chg td:last-child{color:var(--accent);font-weight:600}
-.tabs{display:flex;gap:4px;padding:8px 8px 0;border-bottom:1px solid var(--line)}
-.tabs button{font:12px var(--mono);background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;color:var(--mute);cursor:pointer}
-.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
-pre.code{border-radius:0 0 12px 12px;background:var(--panel);padding:14px 0;counter-reset:l;max-height:560px}
-pre.code .ln{display:block;padding:0 16px 0 0;white-space:pre}
-pre.code .ln::before{counter-increment:l;content:counter(l);display:inline-block;width:3em;padding-right:14px;text-align:right;color:var(--mute);opacity:.6}
-.tk-k{color:var(--accent)}.tk-s{color:var(--cool)}.tk-c{color:var(--mute);font-style:italic}.tk-n{color:var(--warm)}
-footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);padding-top:18px}
-@media(max-width:900px){.wrap{grid-template-columns:1fr;gap:0;padding:0 18px}nav.toc{display:none}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-</style></head>
-<body><div id="root"></div>
-<script id="spec" type="application/json">{"kind":"hld","title":"Social media news feed","subtitle":"How a feed of posts from people you follow is built, stored and served to a hundred million people a day.","idea":"A feed is a list you can build when someone posts or when someone reads. Celebrities break the first way and heavy followers break the second, so real systems use both.","sections":[{"type":"requirements","title":"What we are building","functional":["A user publishes a post (text plus media links).","A user follows and unfollows other users.","A user opens their feed: recent posts from everyone they follow, newest first.","Scrolling loads older posts without gaps or repeats."],"nonfunctional":["Feed read p99 under 200 ms. Reads are far more common than writes.","A new post shows up in followers' feeds within a few seconds, not instantly.","Availability over strict consistency: a briefly stale feed is fine, an error page is not.","Survives the loss of a node, and a celebrity posting, without an outage."],"outOfScope":["Ranking and recommendations (a model on top of this list)","Ads","Search","Media upload and transcoding"]},{"type":"estimation","title":"Estimating the load","lede":"Drag the assumptions. Everything below, and the simulator further down, recomputes.","inputs":[{"id":"dau","label":"Daily active users","value":100000000,"min":1000000,"max":1000000000,"log":true,"fmt":"si"},{"id":"opens","label":"Feed opens per user per day","value":10,"min":1,"max":40,"step":1},{"id":"posts","label":"Posts per user per day","value":0.5,"min":0.1,"max":5,"step":0.1},{"id":"peak","label":"Peak to average ratio","value":3,"min":1,"max":10,"step":0.5,"unit":"x"},{"id":"avgFollowers","label":"Followers of a typical poster","value":200,"min":20,"max":2000,"step":10},{"id":"celebPostShare","label":"Share of posts by celebrity accounts","value":0.002,"min":0.0001,"max":0.01,"log":true,"fmt":"pct"},{"id":"celebFollowers","label":"Followers of a celebrity","value":5000000,"min":100000,"max":100000000,"log":true,"fmt":"si"}],"rows":[{"id":"avgRead","label":"Feed reads, average","expr":"=p.dau*p.opens/86400","fmt":"si","unit":"req/s","why":"Daily opens spread over 86,400 seconds."},{"id":"peakRead","label":"Feed reads, peak","expr":"=r.avgRead*p.peak","fmt":"si","unit":"req/s","why":"Capacity is sized for this number, not the average."},{"id":"avgWrite","label":"Posts published, average","expr":"=p.dau*p.posts/86400","fmt":"si","unit":"posts/s"},{"id":"peakWrite","label":"Posts published, peak","expr":"=r.avgWrite*p.peak","fmt":"si","unit":"posts/s"},{"id":"readWrite","label":"Read to write ratio","expr":"=r.peakRead/r.peakWrite","fmt":"int","unit":": 1","why":"Why we spend effort at write time to make reads cheap."},{"id":"fanPerPost","label":"Feed inserts per post if we push to everyone","expr":"=(1-p.celebPostShare)*p.avgFollowers+p.celebPostShare*p.celebFollowers","fmt":"si","why":"A rare celebrity post dominates the average."},{"id":"fanoutAll","label":"Insert rate, push to everyone, at peak","expr":"=r.peakWrite*r.fanPerPost","fmt":"si","unit":"inserts/s","why":"The number that sinks the naive design."},{"id":"fanoutHybrid","label":"Insert rate, skip celebrities, at peak","expr":"=r.peakWrite*(1-p.celebPostShare)*p.avgFollowers","fmt":"si","unit":"inserts/s"},{"id":"feedBytes","label":"Memory to hold every active user's feed","expr":"=p.dau*800*16","fmt":"bytes","why":"800 entries of 16 bytes each. Not all of it needs to be hot."},{"id":"postBytes","label":"New post storage per day (1 KB each)","expr":"=r.avgWrite*86400*1000","fmt":"bytes"}]},{"type":"api","title":"The API","endpoints":[{"method":"POST","path":"/v1/posts","desc":"Publish. Returns once the post is durable; fan-out happens after.","req":"{ \"text\": \"...\", \"media\": [\"m_81\"] }","res":"{ \"post_id\": \"p_9f3\", \"created_at\": 1767225600 }"},{"method":"GET","path":"/v1/feed?cursor=&limit=20","desc":"Cursor pagination. The cursor is a post id, not an offset, so new posts never shift the page.","res":"{ \"posts\": [...], \"next_cursor\": \"p_7c1\" }"},{"method":"PUT","path":"/v1/follows/{user_id}","desc":"Follow. Triggers a backfill of that user's recent posts into your feed."}]},{"type":"data","title":"Data model","lede":"Three stores, each chosen for how it is read.","tables":[{"name":"posts","store":"sharded SQL by post_id","columns":[{"key":"PK","name":"post_id","type":"bigint","note":"time-ordered id"},{"name":"author_id","type":"bigint"},{"name":"body","type":"text"},{"name":"created_at","type":"ts"}],"why":"The source of truth. A feed entry is just a post_id pointing here."},{"name":"follows","store":"wide-column, by follower and by followee","columns":[{"key":"PK","name":"user_id","type":"bigint"},{"key":"CK","name":"followee_id","type":"bigint"},{"name":"since","type":"ts"}],"why":"Stored twice (who I follow, who follows me) because both directions are queried."},{"name":"timeline:{user_id}","store":"Redis sorted set","columns":[{"name":"member","type":"post_id"},{"name":"score","type":"created_at"}],"why":"Capped at 800. Reading a feed is one ZREVRANGE."}]},{"type":"arch","title":"The system under load","lede":"Dots are requests. Click a box to see why it is there. Then break it.","latencyBudget":200,"intro":"Everything is healthy. Try a preset, or drag a control, and watch which tier saturates first.","nodes":[{"id":"readers","label":"Feed readers","kind":"clients","rps":"=r.peakRead","role":"Apps opening the feed.","why":"Offered load, taken from the estimate above."},{"id":"writers","label":"Post writers","kind":"clients","rps":"=r.peakWrite","role":"Apps publishing posts.","why":"Offered load, taken from the estimate above."},{"id":"gw","label":"API gateway","instances":12,"cap":5000,"ms":2,"role":"Auth, rate limits, routing.","why":"One front door. Also where abusive clients get cut off.","scale":"Add instances. Stateless.","fails":"Saturates at peak if sized for the average."},{"id":"feedSvc","label":"Feed service","instances":"=p.feedInst","cap":2000,"ms":12,"role":"Assembles one page of the feed.","why":"Reads the user's timeline, merges celebrity posts if needed, hydrates post bodies.","scale":"Stateless, add instances.","fails":"CPU bound on hydration when cache hit rate drops."},{"id":"tlRead","label":"Timeline cache","kind":"cache","instances":8,"cap":30000,"ms":1,"hit":"=zipf(p.cacheGB*1e9/12800,p.dau,0.8)*p.warm","role":"Precomputed feed for each active user.","why":"Reading a feed becomes one cache lookup. Hit rate follows how many of the most active users fit in memory (Zipf, s=0.8).","scale":"More memory raises hit rate.","fails":"A restart empties it and every read falls through to the rebuild tier. In production reads and inserts share one cluster; they are split here so each can be sized and broken separately."},{"id":"rebuild","label":"Feed rebuild","kind":"store","instances":"=p.shards","cap":2500,"ms":22,"role":"Rebuilds a feed from follows plus recent posts.","why":"The slow path for users whose feed is not cached.","scale":"Add shards.","fails":"Overloaded by a cold cache. It was sized for misses, not for everyone."},{"id":"celeb","label":"Celebrity cache","kind":"cache","instances":4,"cap":25000,"ms":3,"role":"Recent posts of accounts too large to push.","why":"Hybrid mode: celebrity posts are not pushed to millions of feeds. They are merged in at read time from this small, hot cache.","scale":"Small by design: a few thousand accounts.","fails":"Only used when hybrid mode is on."},{"id":"postSvc","label":"Post service","instances":4,"cap":2500,"ms":10,"role":"Validates and stores posts.","why":"Writes the post, then hands fan-out to a queue so the author is not kept waiting.","scale":"Stateless, add instances.","fails":"Fine at this write rate."},{"id":"postDb","label":"Post store","kind":"store","instances":8,"cap":1500,"ms":8,"role":"Durable posts.","why":"Source of truth. Everything else can be rebuilt from it.","scale":"Shard by post_id.","fails":"Hot shard if ids are not well spread."},{"id":"queue","label":"Fan-out queue","kind":"queue","instances":12,"cap":20000,"ms":2,"role":"Buffers posts waiting to be fanned out.","why":"Decouples publishing from fan-out so a slow tier does not slow authors.","scale":"Add partitions.","fails":"Backlog grows if workers fall behind."},{"id":"workers","label":"Fan-out workers","instances":"=p.workers","cap":40000,"role":"For each post, insert it into each follower's timeline.","why":"Does the push. One post becomes hundreds of inserts, which is where the write amplification lives.","scale":"Add workers.","fails":"Falling behind means feeds go stale, not errors."},{"id":"tlWrite","label":"Cache inserts","kind":"cache","instances":16,"cap":40000,"ms":1,"role":"Receives the pushed entries.","why":"Same cluster as the read cache in real life.","scale":"More shards.","fails":"Saturates if fan-out is unbounded."}],"edges":[{"from":"readers","to":"gw"},{"from":"writers","to":"gw"},{"from":"gw","to":"feedSvc","share":"=r.peakRead/(r.peakRead+r.peakWrite)"},{"from":"gw","to":"postSvc","share":"=r.peakWrite/(r.peakRead+r.peakWrite)"},{"from":"feedSvc","to":"tlRead"},{"from":"feedSvc","to":"celeb","call":true,"share":"=p.hybrid","label":"merge"},{"from":"tlRead","to":"rebuild","miss":true,"label":"miss"},{"from":"postSvc","to":"postDb","call":true},{"from":"postSvc","to":"queue","async":true},{"from":"queue","to":"workers","async":true,"mult":"=(1-p.celebPostShare)*p.avgFollowers+(1-p.hybrid)*p.celebPostShare*p.celebFollowers","label":"x followers"},{"from":"workers","to":"tlWrite","async":true}],"presets":[{"label":"Reset","set":{},"note":"Hybrid fan-out, a warm cache, sized for a 3x peak."},{"label":"Push to everyone (no hybrid)","set":{"hybrid":0},"note":"Celebrity posts are pushed to millions of feeds. Watch the fan-out workers: the insert rate jumps by orders of magnitude and feeds stop updating."},{"label":"Cache restart (cold)","set":{"warm":0},"note":"Every feed read misses and hits the rebuild tier, which was sized for a small fraction of traffic. Latency climbs and requests start to fail."},{"label":"Viral spike (9x)","set":{"peak":9},"note":"Three times the planned peak. The gateway runs out first. Raise nothing and see who sheds."},{"label":"Lose 9 of 12 workers","set":{"workers":3},"note":"Users see no errors, but new posts stop reaching feeds. This is the failure that does not page anyone unless you watch fan-out lag."}],"controls":[{"id":"hybrid","label":"Hybrid fan-out","value":1,"min":0,"max":1,"step":1,"fmt":"onoff"},{"id":"cacheGB","label":"Timeline cache memory","value":600,"min":50,"max":2000,"step":50,"unit":"GB"},{"id":"warm","label":"Cache warmth","value":1,"min":0,"max":1,"step":0.05,"fmt":"pct"},{"id":"shards","label":"Rebuild tier shards","value":12,"min":2,"max":48,"step":1},{"id":"feedInst","label":"Feed service instances","value":32,"min":4,"max":60,"step":1},{"id":"workers","label":"Fan-out workers","value":12,"min":1,"max":40,"step":1}],"metrics":[{"label":"Cache hit rate","expr":"=m.nodes.tlRead.hit","fmt":"pct"},{"label":"Fan-out keeping up","expr":"=m.nodes.workers.accFrac","fmt":"pct"}]},{"type":"tradeoffs","title":"The decisions that matter","items":[{"question":"Build the feed when a post is written, or when the feed is read?","options":[{"name":"Fan-out on write (push)","pros":["A read is one cache lookup","Cost is paid once per post, not once per read"],"cons":["One celebrity post means millions of inserts","Wasted work for followers who never open the app"]},{"name":"Fan-out on read (pull)","pros":["No write amplification","Always fresh"],"cons":["Every read queries hundreds of followees and merges","Reads are 100x more common, so this is the expensive side"]},{"name":"Hybrid","pick":true,"pros":["Push for normal accounts, pull for celebrities","Bounds both the write and the read cost"],"cons":["Two code paths to keep correct","Needs a rule for who counts as a celebrity"]}],"why":"The simulator shows it. Switch hybrid off and the worker tier collapses. A pure pull design would instead move that cost into every one of the thirty-odd thousand reads per second."},{"question":"How do we paginate?","options":[{"name":"Offset and limit","cons":["New posts shift every page, so users see repeats","Deep offsets are slow"]},{"name":"Cursor on post id","pick":true,"pros":["Stable under inserts","Index range scan, constant cost"],"cons":["Cannot jump to page N"]}]}]},{"type":"failures","title":"What breaks","items":[{"what":"Cache restart","effect":"Hit rate drops to zero. All reads fall through to the rebuild tier.","mitigation":"Warm gradually from a snapshot, rate-limit rebuilds, serve a slightly stale feed from a replica while warming.","inject":{"warm":0}},{"what":"Celebrity posts with push-only fan-out","effect":"Millions of inserts for one post. Workers fall minutes behind and every other user's feed goes stale with it.","mitigation":"Hybrid mode with a follower-count threshold, and a separate queue for large fan-outs.","inject":{"hybrid":0}},{"what":"Fan-out workers die","effect":"Nothing errors. Feeds quietly stop updating.","mitigation":"Alert on queue lag and on time-since-last-insert, not only on error rate. Workers must be idempotent so replays are safe.","inject":{"workers":3}},{"what":"Traffic spike beyond plan","effect":"The gateway sheds first and a fraction of users get errors.","mitigation":"Autoscale on request rate, shed low-priority traffic first, and degrade by serving the cached page without hydration.","inject":{"peak":9}}]},{"type":"qa","title":"What an interviewer asks next","items":[{"q":"What if a user follows 10,000 accounts?","a":["The push path is per author, so it does not care. The read path is the one to watch: the timeline is capped at a fixed length, so reading stays constant. The cost shows up on follow, when we backfill. Cap or throttle that backfill."]},{"q":"How do you keep a post from appearing twice?","a":["Timeline entries are keyed by post_id in a sorted set, so an insert is idempotent. A replayed fan-out job changes nothing. The cursor is also a post id, which makes pagination stable."]},{"q":"How do you add ranking later?","a":["Keep this list as the candidate set. A ranking service takes the top few hundred candidates, scores them, and reorders. The storage and fan-out design does not change."]},{"q":"What would you monitor?","a":["Feed read latency p99, cache hit rate, rebuild tier utilisation, queue lag, and the age of the newest entry in a sample of timelines. The last one catches silent failures that error rates miss."]}]}]}</script>
-<script>/* sysdesign runtime. Renders a page from the JSON spec in <script id="spec">.
+/* sysdesign runtime. Renders a page from the JSON spec in <script id="spec">.
    No dependencies. Everything on the page is computed from the spec's own
    inputs and formulas, so numbers in prose, tables and the simulation agree. */
 (function () {
@@ -215,10 +41,18 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
     // Hit ratio of an ideal cache holding the c most popular of n items when popularity is Zipf(s).
     zipf: function (c, n, s) {
       c = Math.max(1, Math.min(c, n)); s = s == null ? 1 : s;
-      var Hn = function (k) { return Math.abs(s - 1) < 1e-6 ? Math.log(k) + 0.5772 : (Math.pow(k, 1 - s) - 1) / (1 - s) + 1; };
-      return clamp(Hn(c) / Hn(n), 0, 1);
+      return clamp(harmonic(c, s) / harmonic(n, s), 0, 1);
     }
   };
+  // Generalised harmonic number sum(i^-s, i=1..k). Exact sum for the first terms, then the
+  // Euler-Maclaurin tail. Accurate and continuous in s, including s = 1.
+  function harmonic(k, s) {
+    var m = Math.min(Math.floor(k), 32), sum = 0, i;
+    for (i = 1; i <= m; i++) sum += Math.pow(i, -s);
+    if (k <= m) return sum;
+    var integral = Math.abs(s - 1) < 1e-9 ? Math.log(k / m) : (Math.pow(k, 1 - s) - Math.pow(m, 1 - s)) / (1 - s);
+    return sum + integral + (Math.pow(k, -s) - Math.pow(m, -s)) / 2 + s * (Math.pow(m, -s - 1) - Math.pow(k, -s - 1)) / 12;
+  }
   var cache = {};
   function val(x, extra) {
     if (typeof x !== "string" || x.charAt(0) !== "=") return x;
@@ -263,18 +97,21 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
   }
   var DEFAULTS = {};
   function onChange(fn) { listeners.push(fn); }
+  function readsSim(row) { return typeof row.expr === "string" && /\bm\./.test(row.expr); }
   function recompute() {
+    // rows that do not read the simulation first, so the simulation can use them
     (SPEC.sections || []).forEach(function (s) {
-      (s.rows || []).forEach(function (row) { if (row.id) S.r[row.id] = val(row.expr, null); });
+      (s.rows || []).forEach(function (row) { if (row.id && !readsSim(row)) S.r[row.id] = val(row.expr); });
     });
     var arch = (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0];
     S.m = arch ? simulate(arch) : null;
-    // rows that read the simulation (m) get a second pass
-    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id) S.r[row.id] = val(row.expr, S.m); }); });
+    // then rows that read this simulation result (never a stale one)
+    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id && readsSim(row)) S.r[row.id] = val(row.expr, S.m); }); });
     listeners.forEach(function (f) { f(); });
     if (S.m) document.body.dataset.sim = JSON.stringify({ rps: S.m.rps, err: S.m.err, lat: S.m.lat, bottleneck: S.m.bottleneck });
   }
-  function setParam(id, v) { S.p[id] = v; recompute(); }
+  // any slider (estimation or simulator) can make a preset chip stop matching, so re-check them
+  function setParam(id, v) { S.p[id] = v; recompute(); presetHooks.forEach(function (f) { f(); }); }
 
   // ---------- fluid flow simulation ----------
   // A request rate enters at source nodes and is split along edges. Each node serves up to
@@ -487,7 +324,8 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
       { id: "rps", label: "Offered load", get: function (m) { return si(m.rps) + " req/s"; } },
       { id: "err", label: "Failed requests", get: function (m) { return fmt(m.err, "pct"); }, cls: function (m) { return m.err > 0.05 ? "bad" : m.err > 0.001 ? "warn" : ""; } },
       { id: "lat", label: "Avg latency", get: function (m) { return fmt(m.lat, "ms"); }, cls: function (m) { return s.latencyBudget && m.lat > s.latencyBudget ? "warn" : ""; } },
-      { id: "bn", label: function (m) { return "Busiest: " + by[m.bottleneck].label; }, get: function (m) { return Math.round(m.nodes[m.bottleneck].util * 100) + "%"; }, cls: function (m) { var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
+      // bottleneck is null when no node has a finite capacity
+      { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { return m.bottleneck ? Math.round(m.nodes[m.bottleneck].util * 100) + "%" : "n/a"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
     ];
     (s.metrics || []).forEach(function (x, i) { defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); } }); });
     defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });
@@ -505,7 +343,7 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
     (s.controls || []).forEach(function (c) {
       var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || 1, value: c.value, "aria-label": c.label });
       if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
-      inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); presetHooks.forEach(function (f) { f(); }); });
+      inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); });
       ctrlSync.push(function () { var v = S.p[c.id]; inp.value = c.log ? Math.log10(v) : v; o.textContent = fmt(v, c.fmt, c.unit); });
       ctrls.appendChild(h("div", { class: "inp" }, h("label", null, c.label), o, inp));
     });
@@ -796,4 +634,3 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
   try { build(); } catch (e) { fail("build: " + e.message + " " + (e.stack || "").split("\n")[1]); }
   window.__sysdesign = { S: S, simulate: simulate, val: val };
 })();
-</script></body></html>

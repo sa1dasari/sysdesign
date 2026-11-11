@@ -31,7 +31,7 @@ Then in Claude Code:
 /sysdesign --lld parking lot
 ```
 
-Needs Node 20.10+. Chrome or Chromium is used by `scripts/check.mjs`. No packages to install.
+Needs Node 20.10+. Chrome or Chromium is used by `scripts/check.mjs` (found on PATH, or set `CHROME=/path/to/chrome`). No packages to install.
 
 ## How it works
 

@@ -18,3 +18,18 @@ Section order:
 - Do not draw a class unless it has behaviour or a reason to exist. A type tag does not need a subclass.
 - Every class gets a `role` sentence. The validator enforces it.
 - Concurrency gets its own answer in `qa`: name the window (check then act), and the fix (lock, compare-and-set, single writer).
+
+## Topic patterns
+
+| Topic | The class that holds changing state | The policy behind an interface | The step to show |
+|---|---|---|---|
+| Parking lot | `ParkingLot` | Allocation, pricing | A car takes the last large spot (see the example) |
+| LRU cache | `LRUCache` (map plus linked list) | Eviction policy (LRU, LFU) | A scan of one-time keys evicts the hot set |
+| Elevator | `ElevatorController` | Scheduling (nearest car, SCAN) | A far request starves under nearest-car |
+| Vending machine | `VendingMachine` (a state machine) | Payment, change making | Exact change unavailable, refund path |
+| Chess | `Game` | Move validation per piece | An illegal move that would leave the king in check |
+| Library system | `Library` | Fines, holds | Two members place a hold on the last copy |
+| Splitwise | `Ledger` | Split rule (equal, exact, percent), debt simplification | Simplifying debts changes who pays whom |
+| Rate limiter class | `Limiter` per key | Algorithm (token bucket, sliding window) | A burst at the window edge doubles the allowed rate |
+
+For a topic not listed: find the one class whose state changes, the decisions most likely to change on their own, and the scenario step where a policy does something questionable.

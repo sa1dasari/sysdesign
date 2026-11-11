@@ -40,3 +40,27 @@ The reference implementation lives in a file next to the spec (for example `lot.
 - Write the implementation in JavaScript by default. It must be small enough to read: under about 120 lines.
 - Include the failure paths in the scenario (full lot, duplicate plate, unknown ticket). The interesting step is usually where a policy does something questionable.
 - If the user wants Java, Python or Go, add the translation as extra `code` files and label them in the lede as not executed. Never present unexecuted code as the thing that ran.
+
+## Charts
+
+A `chart` section shows one quantity as a curve. Use it when the force is a relationship, not a single number: latency against load, keys moved against cluster size, false positives against bits per item.
+
+```js
+{
+  type: "chart",
+  title: "Keys that move when one server joins",
+  x: { label: "Servers before the change", from: 2, to: 100, log: true, param: "servers", fmt: "int" },
+  y: { label: "Share of keys that move", fmt: "pct", min: 0, max: 1 },
+  series: [
+    { label: "mod N", expr: "=x/(x+1)" },
+    { label: "Ring, measured", y: measured },   // needs x.values instead of from/to
+  ],
+  note: "What to look at, quoting the numbers the chart shows.",
+}
+```
+
+- **x** is a sweep (`from`, `to`, `steps`, `log`) or a list of `values`. Recorded `y` data needs `values`, one y per value.
+- **Series** are expressions of `x`, or `y` arrays recorded by running real code at build time. At most 4, one unit per chart.
+- **`x.param`** ties the axis to a slider. Each point is computed with that slider set to x, so rows that depend on it recompute and the curve follows every other slider. A dashed marker shows the slider's current value and the legend shows each series there.
+- **A series that reads `m`** reruns the simulator at every point. This is how to draw latency against load. Past the point where a tier passes 97% busy, latency goes flat because the model caps queueing there and sheds the rest as errors. Say so in the note.
+- A chart may carry its own `inputs` (sliders shown above it) when no estimation section owns them.

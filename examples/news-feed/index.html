@@ -7,10 +7,13 @@
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --serif:ui-serif,Georgia,"Times New Roman",serif;
+  /* chart series, fixed order (validated for colour-vision deficiency on --panel) */
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
 }
 :root[data-theme=dark]{
   --bg:#141412; --panel:#1b1b18; --ink:#ece9e0; --mute:#9a958a; --line:#34322c; --faint:#24231f;
   --accent:#fb923c; --cool:#4ca97e; --warm:#e0a526; --hot:#e5584a;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -168,10 +171,39 @@ pre.code .ln::before{counter-increment:l;content:counter(l);display:inline-block
 .tk-k{color:var(--accent)}.tk-s{color:var(--cool)}.tk-c{color:var(--mute);font-style:italic}.tk-n{color:var(--warm)}
 footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);padding-top:18px}
 @media(max-width:900px){.wrap{grid-template-columns:1fr;gap:0;padding:0 18px}nav.toc{display:none}}
+/* chart */
+.viz .ctrls.top{border-top:0;border-bottom:1px solid var(--line)}
+.plot{position:relative;padding:8px 6px 0}
+.plot svg{display:block;width:100%;height:auto;touch-action:pan-y}
+.plot text{font:11px var(--mono);fill:var(--mute)}
+.plot .an{font:12px var(--sans);fill:var(--mute)}
+.plot .cg{stroke:var(--faint)}
+.plot .ca{stroke:var(--line)}
+.plot .cs{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.plot .cl{font:12px var(--sans);fill:var(--ink);paint-order:stroke;stroke:var(--panel);stroke-width:4px;stroke-linejoin:round}
+.plot .cm{stroke:var(--ink);stroke-dasharray:3 3;opacity:.45}
+.plot .cmt{font:600 11px var(--mono);fill:var(--ink)}
+.plot .cx{stroke:var(--mute);opacity:0;pointer-events:none}
+.plot .cd{stroke:var(--panel);stroke-width:2;pointer-events:none}
+.cs.s0{stroke:var(--s1)}.cs.s1{stroke:var(--s2)}.cs.s2{stroke:var(--s3)}.cs.s3{stroke:var(--s4)}
+.cd.s0{fill:var(--s1)}.cd.s1{fill:var(--s2)}.cd.s2{fill:var(--s3)}.cd.s3{fill:var(--s4)}
+.legend i,.tip i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;margin-right:7px}
+i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.s3{background:var(--s4)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 22px;padding:10px 16px 12px;font-size:14px}
+.legend b{font:600 14px var(--mono);margin-left:8px}
+.tip{position:absolute;display:none;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;box-shadow:0 4px 14px rgba(0,0,0,.12);min-width:170px;z-index:2}
+.tip .th{font:12px var(--mono);color:var(--mute);margin-bottom:4px}
+.tip b{font:600 13px var(--mono);margin-left:8px;float:right}
+.tview{border-top:1px solid var(--line);padding:10px 16px;font-size:14px}
+.tview summary{cursor:pointer;color:var(--mute);font:12px var(--mono)}
+.tbl{width:100%;border-collapse:collapse;margin-top:8px;font:13px var(--mono)}
+.tbl th{text-align:right;font:600 11px var(--mono);color:var(--mute);padding:4px 0 6px;border-bottom:1px solid var(--line)}
+.tbl td{text-align:right;padding:4px 0;border-bottom:1px solid var(--faint)}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style></head>
 <body><div id="root"></div>
-<script id="spec" type="application/json">{"kind":"hld","title":"Social media news feed","subtitle":"How a feed of posts from people you follow is built, stored and served to a hundred million people a day.","idea":"A feed is a list you can build when someone posts or when someone reads. Celebrities break the first way and heavy followers break the second, so real systems use both.","sections":[{"type":"requirements","title":"What we are building","functional":["A user publishes a post (text plus media links).","A user follows and unfollows other users.","A user opens their feed: recent posts from everyone they follow, newest first.","Scrolling loads older posts without gaps or repeats."],"nonfunctional":["Feed read p99 under 200 ms. Reads are far more common than writes.","A new post shows up in followers' feeds within a few seconds, not instantly.","Availability over strict consistency: a briefly stale feed is fine, an error page is not.","Survives the loss of a node, and a celebrity posting, without an outage."],"outOfScope":["Ranking and recommendations (a model on top of this list)","Ads","Search","Media upload and transcoding"]},{"type":"estimation","title":"Estimating the load","lede":"Drag the assumptions. Everything below, and the simulator further down, recomputes.","inputs":[{"id":"dau","label":"Daily active users","value":100000000,"min":1000000,"max":1000000000,"log":true,"fmt":"si"},{"id":"opens","label":"Feed opens per user per day","value":10,"min":1,"max":40,"step":1},{"id":"posts","label":"Posts per user per day","value":0.5,"min":0.1,"max":5,"step":0.1},{"id":"peak","label":"Peak to average ratio","value":3,"min":1,"max":10,"step":0.5,"unit":"x"},{"id":"avgFollowers","label":"Followers of a typical poster","value":200,"min":20,"max":2000,"step":10},{"id":"celebPostShare","label":"Share of posts by celebrity accounts","value":0.002,"min":0.0001,"max":0.01,"log":true,"fmt":"pct"},{"id":"celebFollowers","label":"Followers of a celebrity","value":5000000,"min":100000,"max":100000000,"log":true,"fmt":"si"}],"rows":[{"id":"avgRead","label":"Feed reads, average","expr":"=p.dau*p.opens/86400","fmt":"si","unit":"req/s","why":"Daily opens spread over 86,400 seconds."},{"id":"peakRead","label":"Feed reads, peak","expr":"=r.avgRead*p.peak","fmt":"si","unit":"req/s","why":"Capacity is sized for this number, not the average."},{"id":"avgWrite","label":"Posts published, average","expr":"=p.dau*p.posts/86400","fmt":"si","unit":"posts/s"},{"id":"peakWrite","label":"Posts published, peak","expr":"=r.avgWrite*p.peak","fmt":"si","unit":"posts/s"},{"id":"readWrite","label":"Read to write ratio","expr":"=r.peakRead/r.peakWrite","fmt":"int","unit":": 1","why":"Why we spend effort at write time to make reads cheap."},{"id":"fanPerPost","label":"Feed inserts per post if we push to everyone","expr":"=(1-p.celebPostShare)*p.avgFollowers+p.celebPostShare*p.celebFollowers","fmt":"si","why":"A rare celebrity post dominates the average."},{"id":"fanoutAll","label":"Insert rate, push to everyone, at peak","expr":"=r.peakWrite*r.fanPerPost","fmt":"si","unit":"inserts/s","why":"The number that sinks the naive design."},{"id":"fanoutHybrid","label":"Insert rate, skip celebrities, at peak","expr":"=r.peakWrite*(1-p.celebPostShare)*p.avgFollowers","fmt":"si","unit":"inserts/s"},{"id":"feedBytes","label":"Memory to hold every active user's feed","expr":"=p.dau*800*16","fmt":"bytes","why":"800 entries of 16 bytes each. Not all of it needs to be hot."},{"id":"postBytes","label":"New post storage per day (1 KB each)","expr":"=r.avgWrite*86400*1000","fmt":"bytes"}]},{"type":"api","title":"The API","endpoints":[{"method":"POST","path":"/v1/posts","desc":"Publish. Returns once the post is durable; fan-out happens after.","req":"{ \"text\": \"...\", \"media\": [\"m_81\"] }","res":"{ \"post_id\": \"p_9f3\", \"created_at\": 1767225600 }"},{"method":"GET","path":"/v1/feed?cursor=&limit=20","desc":"Cursor pagination. The cursor is a post id, not an offset, so new posts never shift the page.","res":"{ \"posts\": [...], \"next_cursor\": \"p_7c1\" }"},{"method":"PUT","path":"/v1/follows/{user_id}","desc":"Follow. Triggers a backfill of that user's recent posts into your feed."}]},{"type":"data","title":"Data model","lede":"Three stores, each chosen for how it is read.","tables":[{"name":"posts","store":"sharded SQL by post_id","columns":[{"key":"PK","name":"post_id","type":"bigint","note":"time-ordered id"},{"name":"author_id","type":"bigint"},{"name":"body","type":"text"},{"name":"created_at","type":"ts"}],"why":"The source of truth. A feed entry is just a post_id pointing here."},{"name":"follows","store":"wide-column, by follower and by followee","columns":[{"key":"PK","name":"user_id","type":"bigint"},{"key":"CK","name":"followee_id","type":"bigint"},{"name":"since","type":"ts"}],"why":"Stored twice (who I follow, who follows me) because both directions are queried."},{"name":"timeline:{user_id}","store":"Redis sorted set","columns":[{"name":"member","type":"post_id"},{"name":"score","type":"created_at"}],"why":"Capped at 800. Reading a feed is one ZREVRANGE."}]},{"type":"arch","title":"The system under load","lede":"Dots are requests. Click a box to see why it is there. Then break it.","latencyBudget":200,"intro":"Everything is healthy. Try a preset, or drag a control, and watch which tier saturates first.","nodes":[{"id":"readers","label":"Feed readers","kind":"clients","rps":"=r.peakRead","role":"Apps opening the feed.","why":"Offered load, taken from the estimate above."},{"id":"writers","label":"Post writers","kind":"clients","rps":"=r.peakWrite","role":"Apps publishing posts.","why":"Offered load, taken from the estimate above."},{"id":"gw","label":"API gateway","instances":12,"cap":5000,"ms":2,"role":"Auth, rate limits, routing.","why":"One front door. Also where abusive clients get cut off.","scale":"Add instances. Stateless.","fails":"Saturates at peak if sized for the average."},{"id":"feedSvc","label":"Feed service","instances":"=p.feedInst","cap":2000,"ms":12,"role":"Assembles one page of the feed.","why":"Reads the user's timeline, merges celebrity posts if needed, hydrates post bodies.","scale":"Stateless, add instances.","fails":"CPU bound on hydration when cache hit rate drops."},{"id":"tlRead","label":"Timeline cache","kind":"cache","instances":8,"cap":30000,"ms":1,"hit":"=zipf(p.cacheGB*1e9/12800,p.dau,0.8)*p.warm","role":"Precomputed feed for each active user.","why":"Reading a feed becomes one cache lookup. Hit rate follows how many of the most active users fit in memory (Zipf, s=0.8).","scale":"More memory raises hit rate.","fails":"A restart empties it and every read falls through to the rebuild tier. In production reads and inserts share one cluster; they are split here so each can be sized and broken separately."},{"id":"rebuild","label":"Feed rebuild","kind":"store","instances":"=p.shards","cap":2500,"ms":22,"role":"Rebuilds a feed from follows plus recent posts.","why":"The slow path for users whose feed is not cached.","scale":"Add shards.","fails":"Overloaded by a cold cache. It was sized for misses, not for everyone."},{"id":"celeb","label":"Celebrity cache","kind":"cache","instances":4,"cap":25000,"ms":3,"role":"Recent posts of accounts too large to push.","why":"Hybrid mode: celebrity posts are not pushed to millions of feeds. They are merged in at read time from this small, hot cache.","scale":"Small by design: a few thousand accounts.","fails":"Only used when hybrid mode is on."},{"id":"postSvc","label":"Post service","instances":4,"cap":2500,"ms":10,"role":"Validates and stores posts.","why":"Writes the post, then hands fan-out to a queue so the author is not kept waiting.","scale":"Stateless, add instances.","fails":"Fine at this write rate."},{"id":"postDb","label":"Post store","kind":"store","instances":8,"cap":1500,"ms":8,"role":"Durable posts.","why":"Source of truth. Everything else can be rebuilt from it.","scale":"Shard by post_id.","fails":"Hot shard if ids are not well spread."},{"id":"queue","label":"Fan-out queue","kind":"queue","instances":12,"cap":20000,"ms":2,"role":"Buffers posts waiting to be fanned out.","why":"Decouples publishing from fan-out so a slow tier does not slow authors.","scale":"Add partitions.","fails":"Backlog grows if workers fall behind."},{"id":"workers","label":"Fan-out workers","instances":"=p.workers","cap":40000,"role":"For each post, insert it into each follower's timeline.","why":"Does the push. One post becomes hundreds of inserts, which is where the write amplification lives.","scale":"Add workers.","fails":"Falling behind means feeds go stale, not errors."},{"id":"tlWrite","label":"Cache inserts","kind":"cache","instances":16,"cap":40000,"ms":1,"role":"Receives the pushed entries.","why":"Same cluster as the read cache in real life.","scale":"More shards.","fails":"Saturates if fan-out is unbounded."}],"edges":[{"from":"readers","to":"gw"},{"from":"writers","to":"gw"},{"from":"gw","to":"feedSvc","share":"=r.peakRead/(r.peakRead+r.peakWrite)"},{"from":"gw","to":"postSvc","share":"=r.peakWrite/(r.peakRead+r.peakWrite)"},{"from":"feedSvc","to":"tlRead"},{"from":"feedSvc","to":"celeb","call":true,"share":"=p.hybrid","label":"merge"},{"from":"tlRead","to":"rebuild","miss":true,"label":"miss"},{"from":"postSvc","to":"postDb","call":true},{"from":"postSvc","to":"queue","async":true},{"from":"queue","to":"workers","async":true,"mult":"=(1-p.celebPostShare)*p.avgFollowers+(1-p.hybrid)*p.celebPostShare*p.celebFollowers","label":"x followers"},{"from":"workers","to":"tlWrite","async":true}],"presets":[{"label":"Reset","set":{},"note":"Hybrid fan-out, a warm cache, sized for a 3x peak."},{"label":"Push to everyone (no hybrid)","set":{"hybrid":0},"note":"Celebrity posts are pushed to millions of feeds. Watch the fan-out workers: the insert rate jumps by orders of magnitude and feeds stop updating."},{"label":"Cache restart (cold)","set":{"warm":0},"note":"Every feed read misses and hits the rebuild tier, which was sized for a small fraction of traffic. Latency climbs and requests start to fail."},{"label":"Viral spike (9x)","set":{"peak":9},"note":"Three times the planned peak. The gateway runs out first. Raise nothing and see who sheds."},{"label":"Lose 9 of 12 workers","set":{"workers":3},"note":"Users see no errors, but new posts stop reaching feeds. This is the failure that does not page anyone unless you watch fan-out lag."}],"controls":[{"id":"hybrid","label":"Hybrid fan-out","value":1,"min":0,"max":1,"step":1,"fmt":"onoff"},{"id":"cacheGB","label":"Timeline cache memory","value":600,"min":50,"max":2000,"step":50,"unit":"GB"},{"id":"warm","label":"Cache warmth","value":1,"min":0,"max":1,"step":0.05,"fmt":"pct"},{"id":"shards","label":"Rebuild tier shards","value":12,"min":2,"max":48,"step":1},{"id":"feedInst","label":"Feed service instances","value":32,"min":4,"max":60,"step":1},{"id":"workers","label":"Fan-out workers","value":12,"min":1,"max":40,"step":1}],"metrics":[{"label":"Cache hit rate","expr":"=m.nodes.tlRead.hit","fmt":"pct"},{"label":"Fan-out keeping up","expr":"=m.nodes.workers.accFrac","fmt":"pct"}]},{"type":"tradeoffs","title":"The decisions that matter","items":[{"question":"Build the feed when a post is written, or when the feed is read?","options":[{"name":"Fan-out on write (push)","pros":["A read is one cache lookup","Cost is paid once per post, not once per read"],"cons":["One celebrity post means millions of inserts","Wasted work for followers who never open the app"]},{"name":"Fan-out on read (pull)","pros":["No write amplification","Always fresh"],"cons":["Every read queries hundreds of followees and merges","Reads are 100x more common, so this is the expensive side"]},{"name":"Hybrid","pick":true,"pros":["Push for normal accounts, pull for celebrities","Bounds both the write and the read cost"],"cons":["Two code paths to keep correct","Needs a rule for who counts as a celebrity"]}],"why":"The simulator shows it. Switch hybrid off and the worker tier collapses. A pure pull design would instead move that cost into every one of the thirty-odd thousand reads per second."},{"question":"How do we paginate?","options":[{"name":"Offset and limit","cons":["New posts shift every page, so users see repeats","Deep offsets are slow"]},{"name":"Cursor on post id","pick":true,"pros":["Stable under inserts","Index range scan, constant cost"],"cons":["Cannot jump to page N"]}]}]},{"type":"failures","title":"What breaks","items":[{"what":"Cache restart","effect":"Hit rate drops to zero. All reads fall through to the rebuild tier.","mitigation":"Warm gradually from a snapshot, rate-limit rebuilds, serve a slightly stale feed from a replica while warming.","inject":{"warm":0}},{"what":"Celebrity posts with push-only fan-out","effect":"Millions of inserts for one post. Workers fall minutes behind and every other user's feed goes stale with it.","mitigation":"Hybrid mode with a follower-count threshold, and a separate queue for large fan-outs.","inject":{"hybrid":0}},{"what":"Fan-out workers die","effect":"Nothing errors. Feeds quietly stop updating.","mitigation":"Alert on queue lag and on time-since-last-insert, not only on error rate. Workers must be idempotent so replays are safe.","inject":{"workers":3}},{"what":"Traffic spike beyond plan","effect":"The gateway sheds first and a fraction of users get errors.","mitigation":"Autoscale on request rate, shed low-priority traffic first, and degrade by serving the cached page without hydration.","inject":{"peak":9}}]},{"type":"qa","title":"What an interviewer asks next","items":[{"q":"What if a user follows 10,000 accounts?","a":["The push path is per author, so it does not care. The read path is the one to watch: the timeline is capped at a fixed length, so reading stays constant. The cost shows up on follow, when we backfill. Cap or throttle that backfill."]},{"q":"How do you keep a post from appearing twice?","a":["Timeline entries are keyed by post_id in a sorted set, so an insert is idempotent. A replayed fan-out job changes nothing. The cursor is also a post id, which makes pagination stable."]},{"q":"How do you add ranking later?","a":["Keep this list as the candidate set. A ranking service takes the top few hundred candidates, scores them, and reorders. The storage and fan-out design does not change."]},{"q":"What would you monitor?","a":["Feed read latency p99, cache hit rate, rebuild tier utilisation, queue lag, and the age of the newest entry in a sample of timelines. The last one catches silent failures that error rates miss."]}]}]}</script>
+<script id="spec" type="application/json">{"kind":"hld","title":"Social media news feed","subtitle":"How a feed of posts from people you follow is built, stored and served to a hundred million people a day.","idea":"A feed is a list you can build when someone posts or when someone reads. Celebrities break the first way and heavy followers break the second, so real systems use both.","sections":[{"type":"requirements","title":"What we are building","functional":["A user publishes a post (text plus media links).","A user follows and unfollows other users.","A user opens their feed: recent posts from everyone they follow, newest first.","Scrolling loads older posts without gaps or repeats."],"nonfunctional":["Feed read p99 under 200 ms. Reads are far more common than writes.","A new post shows up in followers' feeds within a few seconds, not instantly.","Availability over strict consistency: a briefly stale feed is fine, an error page is not.","Survives the loss of a node, and a celebrity posting, without an outage."],"outOfScope":["Ranking and recommendations (a model on top of this list)","Ads","Search","Media upload and transcoding"]},{"type":"estimation","title":"Estimating the load","lede":"Drag the assumptions. Everything below, and the simulator further down, recomputes.","inputs":[{"id":"dau","label":"Daily active users","value":100000000,"min":1000000,"max":1000000000,"log":true,"fmt":"si"},{"id":"opens","label":"Feed opens per user per day","value":10,"min":1,"max":40,"step":1},{"id":"posts","label":"Posts per user per day","value":0.5,"min":0.1,"max":5,"step":0.1},{"id":"peak","label":"Peak to average ratio","value":3,"min":1,"max":10,"step":0.5,"unit":"x"},{"id":"avgFollowers","label":"Followers of a typical poster","value":200,"min":20,"max":2000,"step":10},{"id":"celebPostShare","label":"Share of posts by celebrity accounts","value":0.002,"min":0.0001,"max":0.01,"log":true,"fmt":"pct"},{"id":"celebFollowers","label":"Followers of a celebrity","value":5000000,"min":100000,"max":100000000,"log":true,"fmt":"si"}],"rows":[{"id":"avgRead","label":"Feed reads, average","expr":"=p.dau*p.opens/86400","fmt":"si","unit":"req/s","why":"Daily opens spread over 86,400 seconds."},{"id":"peakRead","label":"Feed reads, peak","expr":"=r.avgRead*p.peak","fmt":"si","unit":"req/s","why":"Capacity is sized for this number, not the average."},{"id":"avgWrite","label":"Posts published, average","expr":"=p.dau*p.posts/86400","fmt":"si","unit":"posts/s"},{"id":"peakWrite","label":"Posts published, peak","expr":"=r.avgWrite*p.peak","fmt":"si","unit":"posts/s"},{"id":"readWrite","label":"Read to write ratio","expr":"=r.peakRead/r.peakWrite","fmt":"int","unit":": 1","why":"Why we spend effort at write time to make reads cheap."},{"id":"fanPerPost","label":"Feed inserts per post if we push to everyone","expr":"=(1-p.celebPostShare)*p.avgFollowers+p.celebPostShare*p.celebFollowers","fmt":"si","why":"A rare celebrity post dominates the average."},{"id":"fanoutAll","label":"Insert rate, push to everyone, at peak","expr":"=r.peakWrite*r.fanPerPost","fmt":"si","unit":"inserts/s","why":"The number that sinks the naive design."},{"id":"fanoutHybrid","label":"Insert rate, skip celebrities, at peak","expr":"=r.peakWrite*(1-p.celebPostShare)*p.avgFollowers","fmt":"si","unit":"inserts/s"},{"id":"feedBytes","label":"Memory to hold every active user's feed","expr":"=p.dau*800*16","fmt":"bytes","why":"800 entries of 16 bytes each. Not all of it needs to be hot."},{"id":"postBytes","label":"New post storage per day (1 KB each)","expr":"=r.avgWrite*86400*1000","fmt":"bytes"}]},{"type":"api","title":"The API","endpoints":[{"method":"POST","path":"/v1/posts","desc":"Publish. Returns once the post is durable; fan-out happens after.","req":"{ \"text\": \"...\", \"media\": [\"m_81\"] }","res":"{ \"post_id\": \"p_9f3\", \"created_at\": 1767225600 }"},{"method":"GET","path":"/v1/feed?cursor=&limit=20","desc":"Cursor pagination. The cursor is a post id, not an offset, so new posts never shift the page.","res":"{ \"posts\": [...], \"next_cursor\": \"p_7c1\" }"},{"method":"PUT","path":"/v1/follows/{user_id}","desc":"Follow. Triggers a backfill of that user's recent posts into your feed."}]},{"type":"data","title":"Data model","lede":"Three stores, each chosen for how it is read.","tables":[{"name":"posts","store":"sharded SQL by post_id","columns":[{"key":"PK","name":"post_id","type":"bigint","note":"time-ordered id"},{"name":"author_id","type":"bigint"},{"name":"body","type":"text"},{"name":"created_at","type":"ts"}],"why":"The source of truth. A feed entry is just a post_id pointing here."},{"name":"follows","store":"wide-column, by follower and by followee","columns":[{"key":"PK","name":"user_id","type":"bigint"},{"key":"CK","name":"followee_id","type":"bigint"},{"name":"since","type":"ts"}],"why":"Stored twice (who I follow, who follows me) because both directions are queried."},{"name":"timeline:{user_id}","store":"Redis sorted set","columns":[{"name":"member","type":"post_id"},{"name":"score","type":"created_at"}],"why":"Capped at 800. Reading a feed is one ZREVRANGE."}]},{"type":"arch","title":"The system under load","lede":"Dots are requests. Click a box to see why it is there. Then break it.","latencyBudget":200,"intro":"Everything is healthy. Try a preset, or drag a control, and watch which tier saturates first.","nodes":[{"id":"readers","label":"Feed readers","kind":"clients","rps":"=r.peakRead","role":"Apps opening the feed.","why":"Offered load, taken from the estimate above."},{"id":"writers","label":"Post writers","kind":"clients","rps":"=r.peakWrite","role":"Apps publishing posts.","why":"Offered load, taken from the estimate above."},{"id":"gw","label":"API gateway","instances":12,"cap":5000,"ms":2,"role":"Auth, rate limits, routing.","why":"One front door. Also where abusive clients get cut off.","scale":"Add instances. Stateless.","fails":"Saturates at peak if sized for the average."},{"id":"feedSvc","label":"Feed service","instances":"=p.feedInst","cap":2000,"ms":12,"role":"Assembles one page of the feed.","why":"Reads the user's timeline, merges celebrity posts if needed, hydrates post bodies.","scale":"Stateless, add instances.","fails":"CPU bound on hydration when cache hit rate drops."},{"id":"tlRead","label":"Timeline cache","kind":"cache","instances":8,"cap":30000,"ms":1,"hit":"=zipf(p.cacheGB*1e9/12800,p.dau,0.8)*p.warm","role":"Precomputed feed for each active user.","why":"Reading a feed becomes one cache lookup. Hit rate follows how many of the most active users fit in memory (Zipf, s=0.8).","scale":"More memory raises hit rate.","fails":"A restart empties it and every read falls through to the rebuild tier. In production reads and inserts share one cluster; they are split here so each can be sized and broken separately."},{"id":"rebuild","label":"Feed rebuild","kind":"store","instances":"=p.shards","cap":2500,"ms":22,"role":"Rebuilds a feed from follows plus recent posts.","why":"The slow path for users whose feed is not cached.","scale":"Add shards.","fails":"Overloaded by a cold cache. It was sized for misses, not for everyone."},{"id":"celeb","label":"Celebrity cache","kind":"cache","instances":4,"cap":25000,"ms":3,"role":"Recent posts of accounts too large to push.","why":"Hybrid mode: celebrity posts are not pushed to millions of feeds. They are merged in at read time from this small, hot cache.","scale":"Small by design: a few thousand accounts.","fails":"Only used when hybrid mode is on."},{"id":"postSvc","label":"Post service","instances":4,"cap":2500,"ms":10,"role":"Validates and stores posts.","why":"Writes the post, then hands fan-out to a queue so the author is not kept waiting.","scale":"Stateless, add instances.","fails":"Fine at this write rate."},{"id":"postDb","label":"Post store","kind":"store","instances":8,"cap":1500,"ms":8,"role":"Durable posts.","why":"Source of truth. Everything else can be rebuilt from it.","scale":"Shard by post_id.","fails":"Hot shard if ids are not well spread."},{"id":"queue","label":"Fan-out queue","kind":"queue","instances":12,"cap":20000,"ms":2,"role":"Buffers posts waiting to be fanned out.","why":"Decouples publishing from fan-out so a slow tier does not slow authors.","scale":"Add partitions.","fails":"Backlog grows if workers fall behind."},{"id":"workers","label":"Fan-out workers","instances":"=p.workers","cap":40000,"role":"For each post, insert it into each follower's timeline.","why":"Does the push. One post becomes hundreds of inserts, which is where the write amplification lives.","scale":"Add workers.","fails":"Falling behind means feeds go stale, not errors."},{"id":"tlWrite","label":"Cache inserts","kind":"cache","instances":16,"cap":40000,"ms":1,"role":"Receives the pushed entries.","why":"Same cluster as the read cache in real life.","scale":"More shards.","fails":"Saturates if fan-out is unbounded."}],"edges":[{"from":"readers","to":"gw"},{"from":"writers","to":"gw"},{"from":"gw","to":"feedSvc","share":"=r.peakRead/(r.peakRead+r.peakWrite)"},{"from":"gw","to":"postSvc","share":"=r.peakWrite/(r.peakRead+r.peakWrite)"},{"from":"feedSvc","to":"tlRead"},{"from":"feedSvc","to":"celeb","call":true,"share":"=p.hybrid","label":"merge"},{"from":"tlRead","to":"rebuild","miss":true,"label":"miss"},{"from":"postSvc","to":"postDb","call":true},{"from":"postSvc","to":"queue","async":true},{"from":"queue","to":"workers","async":true,"mult":"=(1-p.celebPostShare)*p.avgFollowers+(1-p.hybrid)*p.celebPostShare*p.celebFollowers","label":"x followers"},{"from":"workers","to":"tlWrite","async":true}],"presets":[{"label":"Reset","set":{},"note":"Hybrid fan-out, a warm cache, sized for a 3x peak."},{"label":"Push to everyone (no hybrid)","set":{"hybrid":0},"note":"Celebrity posts are pushed to millions of feeds. Watch the fan-out workers: the insert rate jumps by orders of magnitude and feeds stop updating."},{"label":"Cache restart (cold)","set":{"warm":0},"note":"Every feed read misses and hits the rebuild tier, which was sized for a small fraction of traffic. Latency climbs and requests start to fail."},{"label":"Viral spike (9x)","set":{"peak":9},"note":"Three times the planned peak. The gateway runs out first. Raise nothing and see who sheds."},{"label":"Lose 9 of 12 workers","set":{"workers":3},"note":"Users see no errors, but new posts stop reaching feeds. This is the failure that does not page anyone unless you watch fan-out lag."}],"controls":[{"id":"hybrid","label":"Hybrid fan-out","value":1,"min":0,"max":1,"step":1,"fmt":"onoff"},{"id":"cacheGB","label":"Timeline cache memory","value":600,"min":50,"max":2000,"step":50,"unit":"GB"},{"id":"warm","label":"Cache warmth","value":1,"min":0,"max":1,"step":0.05,"fmt":"pct"},{"id":"shards","label":"Rebuild tier shards","value":12,"min":2,"max":48,"step":1},{"id":"feedInst","label":"Feed service instances","value":32,"min":4,"max":60,"step":1},{"id":"workers","label":"Fan-out workers","value":12,"min":1,"max":40,"step":1}],"metrics":[{"label":"Cache hit rate","expr":"=m.nodes.tlRead.hit","fmt":"pct"},{"label":"Fan-out keeping up","expr":"=m.nodes.workers.accFrac","fmt":"pct"}]},{"type":"chart","title":"Where latency turns","lede":"Each point reruns the simulator above with a different peak ratio and every other setting as it is now. Change a control above, such as rebuild shards or cache memory, and the curve moves.","x":{"label":"Peak to average ratio","from":1,"to":10,"steps":72,"param":"peak","fmt":"si"},"y":{"label":"Average latency (ms)","fmt":"ms","min":0},"series":[{"label":"Average feed and post latency","expr":"=m.lat"}],"note":"A slow rise, then a wall. Latency creeps up while the busiest tier on the read path fills, then queueing takes over. The flat line past the wall is not recovery: the model caps queueing at 97% busy, and from there the extra traffic is shed as failed requests instead (try the Viral spike preset). Capacity planning is about staying left of the knee at the peak you expect."},{"type":"tradeoffs","title":"The decisions that matter","items":[{"question":"Build the feed when a post is written, or when the feed is read?","options":[{"name":"Fan-out on write (push)","pros":["A read is one cache lookup","Cost is paid once per post, not once per read"],"cons":["One celebrity post means millions of inserts","Wasted work for followers who never open the app"]},{"name":"Fan-out on read (pull)","pros":["No write amplification","Always fresh"],"cons":["Every read queries hundreds of followees and merges","Reads are 100x more common, so this is the expensive side"]},{"name":"Hybrid","pick":true,"pros":["Push for normal accounts, pull for celebrities","Bounds both the write and the read cost"],"cons":["Two code paths to keep correct","Needs a rule for who counts as a celebrity"]}],"why":"The simulator shows it. Switch hybrid off and the worker tier collapses. A pure pull design would instead move that cost into every one of the thirty-odd thousand reads per second."},{"question":"How do we paginate?","options":[{"name":"Offset and limit","cons":["New posts shift every page, so users see repeats","Deep offsets are slow"]},{"name":"Cursor on post id","pick":true,"pros":["Stable under inserts","Index range scan, constant cost"],"cons":["Cannot jump to page N"]}]}]},{"type":"failures","title":"What breaks","items":[{"what":"Cache restart","effect":"Hit rate drops to zero. All reads fall through to the rebuild tier.","mitigation":"Warm gradually from a snapshot, rate-limit rebuilds, serve a slightly stale feed from a replica while warming.","inject":{"warm":0}},{"what":"Celebrity posts with push-only fan-out","effect":"Millions of inserts for one post. Workers fall minutes behind and every other user's feed goes stale with it.","mitigation":"Hybrid mode with a follower-count threshold, and a separate queue for large fan-outs.","inject":{"hybrid":0}},{"what":"Fan-out workers die","effect":"Nothing errors. Feeds quietly stop updating.","mitigation":"Alert on queue lag and on time-since-last-insert, not only on error rate. Workers must be idempotent so replays are safe.","inject":{"workers":3}},{"what":"Traffic spike beyond plan","effect":"The gateway sheds first and a fraction of users get errors.","mitigation":"Autoscale on request rate, shed low-priority traffic first, and degrade by serving the cached page without hydration.","inject":{"peak":9}}]},{"type":"qa","title":"What an interviewer asks next","items":[{"q":"What if a user follows 10,000 accounts?","a":["The push path is per author, so it does not care. The read path is the one to watch: the timeline is capped at a fixed length, so reading stays constant. The cost shows up on follow, when we backfill. Cap or throttle that backfill."]},{"q":"How do you keep a post from appearing twice?","a":["Timeline entries are keyed by post_id in a sorted set, so an insert is idempotent. A replayed fan-out job changes nothing. The cursor is also a post id, which makes pagination stable."]},{"q":"How do you add ranking later?","a":["Keep this list as the candidate set. A ranking service takes the top few hundred candidates, scores them, and reorders. The storage and fan-out design does not change."]},{"q":"What would you monitor?","a":["Feed read latency p99, cache hit rate, rebuild tier utilisation, queue lag, and the age of the newest entry in a sample of timelines. The last one catches silent failures that error rates miss."]}]}]}</script>
 <script>/* sysdesign runtime. Renders a page from the JSON spec in <script id="spec">.
    No dependencies. Everything on the page is computed from the spec's own
    inputs and formulas, so numbers in prose, tables and the simulation agree. */
@@ -184,7 +216,7 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
 
   // ---------- helpers ----------
   function h(tag, attrs) {
-    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan)$/.test(tag);
+    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan|clipPath)$/.test(tag);
     var el = svg ? document.createElementNS(SVG, tag) : document.createElement(tag);
     if (attrs) for (var k in attrs) {
       var v = attrs[k];
@@ -228,15 +260,17 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
     return sum + integral + (Math.pow(k, -s) - Math.pow(m, -s)) / 2 + s * (Math.pow(m, -s - 1) - Math.pow(k, -s - 1)) / 12;
   }
   var cache = {};
-  function val(x, extra) {
-    if (typeof x !== "string" || x.charAt(0) !== "=") return x;
-    var f = cache[x];
+  // Evaluate "=expr". Expressions read p (params), r (rows), m (simulation result) and,
+  // inside a chart, x (the value on the horizontal axis).
+  function val(expr, extra, xv) {
+    if (typeof expr !== "string" || expr.charAt(0) !== "=") return expr;
+    var f = cache[expr];
     if (!f) {
-      try { f = cache[x] = new Function("p", "r", "m", "H", "with(H){return (" + x.slice(1) + ")}"); }
-      catch (e) { fail("bad expression " + x + ": " + e.message); f = function () { return 0; }; }
+      try { f = cache[expr] = new Function("p", "r", "m", "H", "x", "with(H){return (" + expr.slice(1) + ")}"); }
+      catch (e) { fail("bad expression " + expr + ": " + e.message); f = cache[expr] = function () { return 0; }; }
     }
-    try { var v = f(S.p, S.r, extra || S.m, H); return v == null || isNaN(v) && typeof v === "number" ? 0 : v; }
-    catch (e) { fail("expression " + x + ": " + e.message); return 0; }
+    try { var v = f(S.p, S.r, extra || S.m, H, xv); return v == null || isNaN(v) && typeof v === "number" ? 0 : v; }
+    catch (e) { fail("expression " + expr + ": " + e.message); return 0; }
   }
   function fail(msg) { document.body.dataset.error = (document.body.dataset.error || "") + msg + " | "; }
   function fmt(v, f, unit) {
@@ -272,15 +306,19 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
   var DEFAULTS = {};
   function onChange(fn) { listeners.push(fn); }
   function readsSim(row) { return typeof row.expr === "string" && /\bm\./.test(row.expr); }
-  function recompute() {
-    // rows that do not read the simulation first, so the simulation can use them
+  // Rows that do not read the simulation are computed first, so the simulation can use them.
+  // Rows that read it are computed after, against that run's result (never a stale one).
+  function computeRows(simPass, m) {
     (SPEC.sections || []).forEach(function (s) {
-      (s.rows || []).forEach(function (row) { if (row.id && !readsSim(row)) S.r[row.id] = val(row.expr); });
+      (s.rows || []).forEach(function (row) { if (row.id && readsSim(row) === simPass) S.r[row.id] = val(row.expr, m); });
     });
-    var arch = (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0];
+  }
+  function archSection() { return (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0]; }
+  function recompute() {
+    computeRows(false, null);
+    var arch = archSection();
     S.m = arch ? simulate(arch) : null;
-    // then rows that read this simulation result (never a stale one)
-    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id && readsSim(row)) S.r[row.id] = val(row.expr, S.m); }); });
+    computeRows(true, S.m);
     listeners.forEach(function (f) { f(); });
     if (S.m) document.body.dataset.sim = JSON.stringify({ rps: S.m.rps, err: S.m.err, lat: S.m.lat, bottleneck: S.m.bottleneck });
   }
@@ -374,16 +412,23 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
     return [h("div", { class: "grid g3" }, col("Functional", s.functional), col("Non-functional", s.nonfunctional), s.outOfScope ? col("Out of scope", s.outOfScope) : null)];
   };
 
-  builders.estimation = function (s) {
-    var outs = [], inputs = h("div", { class: "card" }, h("h3", null, "Assumptions (drag)"));
-    (s.inputs || []).forEach(function (c) {
-      var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || "any", value: c.value, "aria-label": c.label });
-      var lg = c.log;
-      if (lg) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; inp.value = Math.log10(c.value); }
-      inp.addEventListener("input", function () { setParam(c.id, lg ? Math.pow(10, +inp.value) : +inp.value); });
-      onChange(function () { o.textContent = fmt(S.p[c.id], c.fmt, c.unit); });
-      inputs.appendChild(h("div", { class: "inp" }, h("label", null, c.label), o, inp));
+  // One labelled slider bound to param c.id. It follows the param when a preset changes it.
+  function slider(c, defStep) {
+    var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || defStep, "aria-label": c.label });
+    if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
+    inp.value = c.log ? Math.log10(c.value) : c.value;
+    inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); });
+    onChange(function () {
+      var v = S.p[c.id];
+      if (document.activeElement !== inp) inp.value = c.log ? Math.log10(v) : v;
+      o.textContent = fmt(v, c.fmt, c.unit);
     });
+    return h("div", { class: "inp" }, h("label", null, c.label), o, inp);
+  }
+
+  builders.estimation = function (s) {
+    var inputs = h("div", { class: "card" }, h("h3", null, "Assumptions (drag)"));
+    (s.inputs || []).forEach(function (c) { inputs.appendChild(slider(c, "any")); });
     var tb = h("table", { class: "rows" });
     (s.rows || []).forEach(function (row) {
       var td = h("td");
@@ -513,19 +558,11 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
     });
     presetHooks.push(function () { presetBtns.forEach(function (x) { var on = true, want = {}; for (var d in DEFAULTS) want[d] = DEFAULTS[d]; for (var k in x.pr.set) want[k] = x.pr.set[k]; for (var w in want) if (S.p[w] !== want[w]) on = false; x.b.classList.toggle("on", on); }); });
     var ctrls = h("div", { class: "ctrls" });
-    var ctrlSync = [];
-    (s.controls || []).forEach(function (c) {
-      var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || 1, value: c.value, "aria-label": c.label });
-      if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
-      inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); });
-      ctrlSync.push(function () { var v = S.p[c.id]; inp.value = c.log ? Math.log10(v) : v; o.textContent = fmt(v, c.fmt, c.unit); });
-      ctrls.appendChild(h("div", { class: "inp" }, h("label", null, c.label), o, inp));
-    });
+    (s.controls || []).forEach(function (c) { ctrls.appendChild(slider(c, 1)); });
 
     var dots = [], t0 = performance.now(), reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     function paint() {
       var m = S.m; if (!m) return;
-      ctrlSync.forEach(function (f) { f(); });
       nodes.forEach(function (n) {
         var r = m.nodes[n.id], el = nodeEls[n.id];
         el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util * 0.35, 0, 0.9));
@@ -562,6 +599,173 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
     if (!reduce) requestAnimationFrame(frame);
     var stage = h("div", { class: "stage" }, svg);
     return [paras(s.body || []), h("div", { class: "card sim" }, presetBar.childNodes.length ? presetBar : null, stage, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
+  };
+
+  // ----- chart: a quantity as a curve -----
+  // `x` is a sweep (from..to, optionally log) or a list of values. Each series is an
+  // expression of x (and of params and rows), or a `y` array recorded at build time by
+  // running real code. With `x.param`, every point is computed with that param set to x,
+  // so the curves follow every other slider, and a marker shows the page's current value.
+  var MAX_SERIES = 4;
+  function niceTicks(lo, hi, log) {
+    var t = [], i, v;
+    if (log) {
+      var a = Math.floor(Math.log10(lo)), b = Math.ceil(Math.log10(hi));
+      for (i = a; i <= b; i++) [1, 2, 5].forEach(function (k) {
+        v = k * Math.pow(10, i);
+        if (v >= lo * 0.999 && v <= hi * 1.001 && (k === 1 || b - a <= 2)) t.push(v);
+      });
+      return t;
+    }
+    var raw = (hi - lo || Math.abs(hi) || 1) / 5, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+    var step = (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+    for (v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-9; v += step) t.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return t;
+  }
+  function tickFmt(v, f) {
+    if (f === "pct") return +(v * 100).toPrecision(3) + "%";
+    if (f === "bytes") return scale(v, ["B", "KB", "MB", "GB", "TB", "PB", "EB"], 1000);
+    var s = v !== 0 && Math.abs(v) < 1 ? String(+v.toPrecision(2)) : si(v);
+    return f === "ms" ? s + " ms" : s;
+  }
+  var chartN = 0;
+  builders.chart = function (s) {
+    var W = 720, Hh = 330, ML = 60, MR = 18, MT = 34, MB = 50, PW = W - ML - MR, PH = Hh - MT - MB;
+    var X = s.x || {}, Y = s.y || {}, ser = (s.series || []).slice(0, MAX_SERIES), arch = archSection();
+    var needSim = !!arch && ser.some(readsSim), clipId = "clip" + chartN++;
+    var data = null, sx = null, sy = null, ylo = 0, yhi = 1, plot = null, clipRect = null;
+    function points() {
+      if (X.values) return X.values.slice();
+      var n = X.steps || 60, out = [];
+      for (var i = 0; i <= n; i++) { var t = i / n; out.push(X.log ? X.from * Math.pow(X.to / X.from, t) : X.from + (X.to - X.from) * t); }
+      return out;
+    }
+    function sweep() {
+      var xs = points(), ys = ser.map(function () { return []; }), keepP = X.param ? S.p[X.param] : null, keepR = {}, k;
+      for (k in S.r) keepR[k] = S.r[k];
+      xs.forEach(function (xv, i) {
+        var m = S.m;
+        if (X.param) { S.p[X.param] = xv; computeRows(false, null); if (needSim) { m = simulate(arch); computeRows(true, m); } }
+        ser.forEach(function (e, j) { ys[j].push(e.y ? +e.y[i] : +val(e.expr, m, xv)); });
+      });
+      if (X.param) { S.p[X.param] = keepP; for (k in keepR) S.r[k] = keepR[k]; }
+      return { xs: xs, ys: ys };
+    }
+    function shown(v) { return isFinite(v) && (!Y.log || v > 0); }
+    function now(e) { return X.param && !e.y ? +val(e.expr, S.m, S.p[X.param]) : NaN; }
+
+    var svg = h("svg", { viewBox: "0 0 " + W + " " + Hh, role: "img", "aria-label": s.title || "chart" });
+    clipRect = h("rect", { x: ML, y: MT - 3, width: PW, height: PH + 6 });
+    svg.appendChild(h("defs", null, h("clipPath", { id: clipId }, clipRect)));
+    var gGrid = h("g"), gLines = h("g", { "clip-path": "url(#" + clipId + ")" }), gTop = h("g");
+    var cross = h("line", { class: "cx", y1: MT, y2: MT + PH }), hdots = h("g");
+    [gGrid, gLines, gTop, cross, hdots].forEach(function (g) { svg.appendChild(g); });
+    var tip = h("div", { class: "tip" }), legend = h("div", { class: "legend" }), table = h("table", { class: "tbl" });
+
+    function draw() {
+      // draw at the container's real width so text stays a readable size on phones
+      var cw = plot && plot.clientWidth ? plot.clientWidth - 12 : 720;
+      W = clamp(Math.round(cw), 300, 760); PW = W - ML - MR;
+      svg.setAttribute("viewBox", "0 0 " + W + " " + Hh); clipRect.setAttribute("width", PW);
+      data = sweep();
+      var xs = data.xs, xlo = Math.min.apply(null, xs), xhi = Math.max.apply(null, xs), all = [];
+      data.ys.forEach(function (a) { a.forEach(function (v) { if (shown(v)) all.push(v); }); });
+      ylo = Y.min != null ? Y.min : all.length ? Math.min.apply(null, all) : Y.log ? 1 : 0;
+      yhi = Y.max != null ? Y.max : all.length ? Math.max.apply(null, all) : ylo + 1;
+      if (Y.log) {
+        ylo = Math.pow(10, Math.floor(Math.log10(ylo))); yhi = Math.pow(10, Math.ceil(Math.log10(yhi)));
+        if (yhi <= ylo) yhi = ylo * 10;
+      } else {
+        if (Y.min == null) ylo = Math.min(0, ylo);
+        if (yhi <= ylo) yhi = ylo + 1;
+        var t0 = niceTicks(ylo, yhi), st = t0.length > 1 ? t0[1] - t0[0] : 1;
+        if (Y.max == null) yhi = Math.ceil(yhi / st - 1e-9) * st;
+      }
+      sx = function (v) { return ML + (X.log ? Math.log(v / xlo) / Math.log(xhi / xlo) : (v - xlo) / ((xhi - xlo) || 1)) * PW; };
+      sy = function (v) { return MT + PH - (Y.log ? Math.log(v / ylo) / Math.log(yhi / ylo) : (v - ylo) / (yhi - ylo)) * PH; };
+      gGrid.innerHTML = ""; gLines.innerHTML = ""; gTop.innerHTML = "";
+      niceTicks(ylo, yhi, Y.log).forEach(function (v) {
+        var y = sy(v);
+        gGrid.appendChild(h("line", { class: "cg", x1: ML, x2: ML + PW, y1: y, y2: y }));
+        gGrid.appendChild(h("text", { x: ML - 8, y: y + 4, "text-anchor": "end" }, tickFmt(v, Y.fmt)));
+      });
+      niceTicks(xlo, xhi, X.log).forEach(function (v) {
+        var x = sx(v);
+        gGrid.appendChild(h("line", { class: "ca", x1: x, x2: x, y1: MT + PH, y2: MT + PH + 5 }));
+        gGrid.appendChild(h("text", { x: x, y: MT + PH + 19, "text-anchor": "middle" }, tickFmt(v, X.fmt)));
+      });
+      gGrid.appendChild(h("line", { class: "ca", x1: ML, x2: ML + PW, y1: MT + PH, y2: MT + PH }));
+      if (X.label) gGrid.appendChild(h("text", { class: "an", x: ML + PW / 2, y: Hh - 8, "text-anchor": "middle" }, X.label));
+      if (Y.label) gGrid.appendChild(h("text", { class: "an", x: 4, y: 14 }, Y.label));
+      var ends = [];
+      data.ys.forEach(function (ys, j) {
+        var d = "", pen = false;
+        ys.forEach(function (v, i) {
+          if (!shown(v)) { pen = false; return; }
+          d += (pen ? "L" : "M") + sx(xs[i]).toFixed(1) + "," + sy(v).toFixed(1); pen = true;
+        });
+        gLines.appendChild(h("path", { class: "cs s" + j, d: d || "M0,0" }));
+        for (var i = ys.length - 1; i >= 0; i--) if (shown(ys[i])) { ends.push({ j: j, y: clamp(sy(ys[i]), MT, MT + PH) }); break; }
+      });
+      if (ser.length > 1) { // direct labels at the line ends, nudged apart
+        // above the line end, or below it when the line hugs the top edge
+        ends.forEach(function (e) { e.ly = e.y - 7 >= MT + 12 ? e.y - 7 : e.y + 17; });
+        ends.sort(function (a, b) { return a.ly - b.ly; });
+        var last = -1e9;
+        ends.forEach(function (e) { e.ly = Math.max(e.ly, last + 15); last = e.ly; });
+        ends.forEach(function (e) { gTop.appendChild(h("text", { class: "cl", x: ML + PW - 2, y: e.ly, "text-anchor": "end" }, ser[e.j].label)); });
+      }
+      if (X.param) { // where the page's current value sits
+        var cx = S.p[X.param];
+        if (cx >= xlo && cx <= xhi) {
+          var px = sx(cx);
+          gTop.appendChild(h("line", { class: "cm", x1: px, x2: px, y1: MT, y2: MT + PH }));
+          gTop.appendChild(h("text", { class: "cmt", x: clamp(px, ML + 30, ML + PW - 30), y: MT - 8, "text-anchor": "middle" }, "now " + tickFmt(cx, X.fmt)));
+          ser.forEach(function (e, j) { var v = now(e); if (shown(v) && v >= ylo && v <= yhi) gTop.appendChild(h("circle", { class: "cd s" + j, cx: px, cy: sy(v), r: 4.5 })); });
+        }
+      }
+      legend.innerHTML = "";
+      if (ser.length > 1 || X.param) ser.forEach(function (e, j) {
+        var v = now(e);
+        legend.appendChild(h("span", null, h("i", { class: "s" + j }), e.label, isFinite(v) ? h("b", null, fmt(v, Y.fmt, Y.unit)) : null));
+      });
+      legend.style.display = legend.childNodes.length ? "" : "none";
+      table.innerHTML = "";
+      table.appendChild(h("tr", null, h("th", null, X.label || "x"), ser.map(function (e) { return h("th", null, e.label); })));
+      var every = Math.max(1, Math.ceil(xs.length / 25));
+      xs.forEach(function (xv, i) {
+        if (i % every && i !== xs.length - 1) return;
+        table.appendChild(h("tr", null, h("td", null, fmt(xv, X.fmt, X.unit)), data.ys.map(function (a) { return h("td", null, fmt(a[i], Y.fmt, Y.unit)); })));
+      });
+    }
+    function hover(ev) {
+      var r = svg.getBoundingClientRect(), vx = (ev.clientX - r.left) * W / r.width, xs = data.xs, best = 0;
+      if (vx < ML - 10 || vx > ML + PW + 10) return unhover();
+      xs.forEach(function (v, i) { if (Math.abs(sx(v) - vx) < Math.abs(sx(xs[best]) - vx)) best = i; });
+      var px = sx(xs[best]);
+      cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.style.opacity = 1;
+      hdots.innerHTML = ""; tip.innerHTML = "";
+      tip.appendChild(h("div", { class: "th" }, (X.label ? X.label + ": " : "") + fmt(xs[best], X.fmt, X.unit)));
+      data.ys.forEach(function (a, j) {
+        var v = a[best];
+        if (shown(v) && v >= ylo && v <= yhi) hdots.appendChild(h("circle", { class: "cd s" + j, cx: px, cy: sy(v), r: 4.5 }));
+        tip.appendChild(h("div", null, h("i", { class: "s" + j }), ser[j].label, h("b", null, shown(v) ? fmt(v, Y.fmt, Y.unit) : "n/a")));
+      });
+      tip.style.display = "block";
+      var left = px * r.width / W, right = left > r.width / 2;
+      tip.style.left = right ? "" : left + 14 + "px"; tip.style.right = right ? r.width - left + 14 + "px" : "";
+      tip.style.top = MT * r.width / W + "px";
+    }
+    function unhover() { cross.style.opacity = 0; hdots.innerHTML = ""; tip.style.display = "none"; }
+    svg.addEventListener("pointermove", hover); svg.addEventListener("pointerleave", unhover);
+    onChange(draw);
+    var lastW = 0;
+    window.addEventListener("resize", function () { if (plot.clientWidth !== lastW) { lastW = plot.clientWidth; draw(); } });
+    var ins = (s.inputs || []).length ? h("div", { class: "ctrls top" }, s.inputs.map(function (c) { return slider(c, "any"); })) : null;
+    plot = h("div", { class: "plot" }, svg, tip);
+    return [paras(s.body || []), h("div", { class: "card viz", style: "padding:0" }, ins, plot, legend,
+      s.note ? h("div", { class: "simnote", html: md(s.note) }) : null,
+      h("details", { class: "tview" }, h("summary", null, "Show as table"), table))];
   };
 
   // ----- LLD: class diagram -----
@@ -772,13 +976,16 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
   };
 
   // ---------- page assembly ----------
+  // hld: many machines and scale. lld: object design in one process. concept: how an
+  // algorithm, data structure or protocol works (consistent hashing, Raft, Bloom filter).
+  var KIND = { hld: ["HLD", "High-level design"], lld: ["LLD", "Low-level design"], concept: ["Concept", "How it works"] }[SPEC.kind] || ["HLD", "High-level design"];
   function build() {
     declareParams();
     for (var dk in S.p) DEFAULTS[dk] = S.p[dk];
     var root = document.getElementById("root"), secs = SPEC.sections || [];
-    var toc = h("nav", { class: "toc" }, h("div", { class: "brand" }, SPEC.kind === "lld" ? "Low-level design" : "High-level design"));
+    var toc = h("nav", { class: "toc" }, h("div", { class: "brand" }, KIND[1]));
     var main = h("main");
-    var hero = h("header", { class: "hero" }, h("span", { class: "kind" }, SPEC.kind === "lld" ? "LLD" : "HLD"), h("h1", null, SPEC.title), SPEC.subtitle ? h("p", { class: "sub" }, SPEC.subtitle) : null,
+    var hero = h("header", { class: "hero" }, h("span", { class: "kind" }, KIND[0]), h("h1", null, SPEC.title), SPEC.subtitle ? h("p", { class: "sub" }, SPEC.subtitle) : null,
       SPEC.idea ? h("div", { class: "idea" }, h("small", null, "The one idea"), SPEC.idea) : null);
     main.appendChild(hero);
     secs.forEach(function (s, i) {
@@ -792,7 +999,7 @@ footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);
     var theme = h("button", { onclick: function () { var d = document.documentElement; var t = d.dataset.theme === "dark" ? "light" : "dark"; d.dataset.theme = t; theme.textContent = t === "dark" ? "Light" : "Dark"; } }, "Dark");
     toc.appendChild(theme);
     root.appendChild(h("div", { class: "wrap" }, toc, main));
-    document.title = SPEC.title + " | " + (SPEC.kind === "lld" ? "LLD" : "HLD");
+    document.title = SPEC.title + " | " + KIND[0];
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) { document.documentElement.dataset.theme = "dark"; theme.textContent = "Light"; }
     recompute();
     presetHooks.forEach(function (f) { f(); });

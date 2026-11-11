@@ -127,6 +127,15 @@ export default {
       ],
     },
     {
+      type: "chart",
+      title: "Where latency turns",
+      lede: "Each point reruns the simulator above with a different peak ratio and every other setting as it is now. Change a control above, such as rebuild shards or cache memory, and the curve moves.",
+      x: { label: "Peak to average ratio", from: 1, to: 10, steps: 72, param: "peak", fmt: "si" },
+      y: { label: "Average latency (ms)", fmt: "ms", min: 0 },
+      series: [{ label: "Average feed and post latency", expr: "=m.lat" }],
+      note: "A slow rise, then a wall. Latency creeps up while the busiest tier on the read path fills, then queueing takes over. The flat line past the wall is not recovery: the model caps queueing at 97% busy, and from there the extra traffic is shed as failed requests instead (try the Viral spike preset). Capacity planning is about staying left of the knee at the peak you expect.",
+    },
+    {
       type: "tradeoffs",
       title: "The decisions that matter",
       items: [

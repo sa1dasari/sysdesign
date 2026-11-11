@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Parking lot</title>
+<style>:root{
+  --bg:#f6f4ef; --panel:#fffdf8; --ink:#1c1b19; --mute:#6b675e; --line:#d9d4c7; --faint:#ece8dd;
+  --accent:#c2410c; --cool:#2f7d5b; --warm:#c98a0b; --hot:#c0392b;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:ui-serif,Georgia,"Times New Roman",serif;
+}
+:root[data-theme=dark]{
+  --bg:#141412; --panel:#1b1b18; --ink:#ece9e0; --mute:#9a958a; --line:#34322c; --faint:#24231f;
+  --accent:#fb923c; --cool:#4ca97e; --warm:#e0a526; --hot:#e5584a;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{display:grid;grid-template-columns:220px minmax(0,1fr);gap:48px;max-width:1180px;margin:0 auto;padding:0 28px}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;padding:40px 0;overflow:auto;font-size:13px}
+nav.toc .brand{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:18px}
+nav.toc a{display:block;padding:5px 0 5px 12px;color:var(--mute);text-decoration:none;border-left:2px solid var(--line)}
+nav.toc a:hover{color:var(--ink)}
+nav.toc a.on{color:var(--ink);border-left-color:var(--accent)}
+nav.toc button{margin-top:18px;font:12px var(--mono);background:none;border:1px solid var(--line);color:var(--mute);padding:4px 10px;border-radius:6px;cursor:pointer}
+main{padding:56px 0 120px;min-width:0}
+header.hero{margin-bottom:56px}
+.kind{display:inline-block;font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);padding:2px 8px;border-radius:99px}
+h1{font:600 clamp(32px,5vw,48px)/1.1 var(--serif);letter-spacing:-.02em;margin:16px 0 10px}
+.sub{font-size:19px;color:var(--mute);max-width:60ch;margin:0}
+.idea{margin:28px 0 0;padding:18px 22px;border-left:3px solid var(--accent);background:var(--panel);font:italic 20px/1.45 var(--serif);max-width:62ch}
+.idea small{display:block;font:600 11px var(--mono);font-style:normal;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin-bottom:6px}
+section{margin:0 0 72px;scroll-margin-top:24px}
+section>h2{font:600 26px/1.2 var(--serif);margin:0 0 6px;letter-spacing:-.01em}
+section>h2 .n{font:500 12px var(--mono);color:var(--accent);margin-right:10px;vertical-align:middle}
+section>.lede{color:var(--mute);margin:0 0 22px;max-width:64ch}
+p{margin:0 0 14px;max-width:68ch}
+code{font:.88em var(--mono);background:var(--faint);padding:1px 5px;border-radius:4px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.card h3{font:600 12px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--mute);margin:0 0 10px}
+.card ul{margin:0;padding-left:18px}
+.card li{margin:4px 0}
+.tag{font:11px var(--mono);color:var(--mute);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-right:6px}
+/* estimation */
+.est{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:14px}
+@media(max-width:820px){.est{grid-template-columns:1fr}}
+.inp{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin-bottom:14px;align-items:baseline}
+.inp label{font-size:14px}
+.inp output{font:13px var(--mono);color:var(--accent)}
+.inp input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.rows{width:100%;border-collapse:collapse;font-size:14px}
+.rows td{padding:7px 0;border-bottom:1px solid var(--faint)}
+.rows td:last-child{text-align:right;font:14px var(--mono);white-space:nowrap}
+.rows .why{display:block;font-size:12px;color:var(--mute)}
+/* api + data */
+.ep{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:baseline}
+.ep .m{font:600 12px var(--mono);padding:2px 8px;border-radius:5px;background:var(--faint)}
+.ep .m.POST,.ep .m.PUT,.ep .m.DELETE,.ep .m.PATCH{color:var(--accent)}
+.ep .p{font:14px var(--mono)}
+.ep .d{grid-column:2;color:var(--mute);font-size:14px}
+.ep pre{grid-column:2;margin:4px 0 0}
+pre{background:var(--faint);padding:10px 12px;border-radius:8px;overflow:auto;font:12.5px/1.5 var(--mono);margin:0}
+table.cols{width:100%;border-collapse:collapse;font:13px var(--mono)}
+table.cols td{padding:3px 8px 3px 0;vertical-align:top}
+table.cols td.t{color:var(--mute)}
+table.cols td.k{color:var(--accent);width:2.5em}
+table.cols td.nt{color:var(--mute);font-family:var(--sans);font-size:12px}
+.store{font:11px var(--mono);color:var(--mute);float:right}
+/* sim */
+.sim{padding:0;overflow:hidden}
+.sim .bar{display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.chip{font:12px var(--mono);background:var(--faint);border:1px solid var(--line);color:var(--ink);padding:5px 10px;border-radius:99px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stage{overflow-x:auto;padding:6px 8px}
+.stage svg{display:block;min-width:720px;width:100%;height:auto}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));border-top:1px solid var(--line)}
+.metric{padding:12px 14px;border-right:1px solid var(--line)}
+.metric:last-child{border-right:0}
+.metric b{display:block;font:600 20px var(--mono)}
+.metric span{font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.metric.bad b{color:var(--hot)}
+.metric.warn b{color:var(--warm)}
+.ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 22px;padding:14px;border-top:1px solid var(--line)}
+.simnote{padding:12px 16px;border-top:1px solid var(--line);font-size:14px;color:var(--mute);min-height:3.4em}
+.simnote b{color:var(--ink)}
+.node rect.box{stroke:var(--ink);stroke-width:1.2;rx:8;fill:color-mix(in srgb,var(--hot) calc(var(--u)*100%),var(--panel))}
+.node.sel rect.box{stroke:var(--accent);stroke-width:2.4}
+.node.dead rect.box{stroke:var(--hot);stroke-dasharray:4 3}
+.node text{fill:var(--ink);font:600 14px var(--sans);pointer-events:none}
+.node text.s{font:12px var(--mono);fill:var(--mute)}
+.node:hover rect.box{stroke:var(--accent)}
+.node{cursor:pointer}
+.ubar{fill:var(--cool)}
+.ubar.warn{fill:var(--warm)}.ubar.hot{fill:var(--hot)}
+.edge{fill:none;stroke:var(--line);stroke-linecap:round}
+.edge.async{stroke-dasharray:5 4}
+.elabel{font:11.5px var(--mono);fill:var(--mute);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.dot{fill:var(--accent)}
+.dot.async{fill:var(--mute)}
+.detail{padding:14px 16px;border-top:1px solid var(--line);font-size:14px;display:grid;gap:4px 18px;grid-template-columns:auto 1fr}
+.detail dt{font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);padding-top:2px}
+.detail dd{margin:0}
+/* tradeoffs, failures, qa */
+.opt{display:flex;flex-direction:column;gap:6px}
+.opt.pick{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.opt h4{margin:0;font:600 16px var(--serif)}
+.opt .badge{font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.pro::before{content:"+ ";color:var(--cool);font-family:var(--mono)}
+.con::before{content:"– ";color:var(--hot);font-family:var(--mono)}
+.q{margin:0 0 6px}
+.q summary{cursor:pointer;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;font-weight:600}
+.q[open] summary{border-bottom-left-radius:0;border-bottom-right-radius:0}
+.q .a{padding:12px 16px;border:1px solid var(--line);border-top:0;border-radius:0 0 10px 10px;background:var(--panel)}
+.fail h4{margin:0 0 6px;font:600 15px var(--sans)}
+.fail dl{margin:0;font-size:14px}.fail dt{font:11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin-top:8px}.fail dd{margin:0}
+/* lld */
+.diagram{padding:10px;overflow-x:auto}
+.diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
+.cls rect{fill:var(--panel);stroke:var(--ink);stroke-width:1.2}
+.cls .hd{fill:var(--faint)}
+.cls text{font:12px var(--mono);fill:var(--ink)}
+.cls text.h{font:600 13px var(--sans)}
+.cls text.st{font:italic 10.5px var(--mono);fill:var(--mute)}
+.cls{cursor:pointer}
+.cls.sel rect.fr{stroke:var(--accent);stroke-width:2.4}
+.rel{stroke:var(--ink);fill:none;stroke-width:1.2}
+.rel.dash{stroke-dasharray:5 4}
+.rl{font:10.5px var(--mono);fill:var(--mute);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.life{stroke:var(--line);stroke-dasharray:4 4}
+.actor rect{fill:var(--panel);stroke:var(--ink);stroke-width:1.2;rx:6}
+.actor text{font:600 12.5px var(--sans);fill:var(--ink)}
+.msg{transition:opacity .2s}
+.msg.off{opacity:.22}
+.msg line,.msg path{stroke:var(--ink);fill:none;stroke-width:1.3}
+.msg.ret line{stroke-dasharray:5 4}
+.msg.on line,.msg.on path{stroke:var(--accent);stroke-width:2}
+.msg text{font:12px var(--mono);fill:var(--ink)}
+.msg.on text{fill:var(--accent)}
+.st rect.sb{fill:var(--panel);stroke:var(--ink);stroke-width:1.2}
+.stn text{font:600 13px var(--sans);fill:var(--ink)}
+.stn.cur rect.sb{fill:var(--ink)}.stn.cur text{fill:var(--bg)}
+.stn.term rect.sb{stroke-width:2.6}
+.tr{stroke:var(--ink);fill:none;stroke-width:1.2}
+.tr.live{stroke:var(--accent);stroke-width:2.2}
+.tl{font:11px var(--mono);fill:var(--mute);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.ctl .grow{flex:1;color:var(--mute);font-size:14px;min-width:200px}
+.steps{display:grid;grid-template-columns:220px minmax(0,1fr);}
+@media(max-width:820px){.steps{grid-template-columns:1fr}}
+.steps ol{list-style:none;margin:0;padding:8px;border-right:1px solid var(--line);max-height:420px;overflow:auto}
+.steps li button{width:100%;text-align:left;background:none;border:0;border-radius:8px;padding:7px 10px;font:12.5px var(--mono);color:var(--mute);cursor:pointer}
+.steps li button.on{background:var(--ink);color:var(--bg)}
+.steps .pane{padding:16px 18px}
+.steps .call{font:14px var(--mono);margin:0 0 8px}
+.kv{width:100%;border-collapse:collapse;font:13px var(--mono);margin-top:10px}
+.kv td{padding:4px 8px;border-bottom:1px solid var(--faint);vertical-align:top}
+.kv td:first-child{color:var(--mute);width:34%}
+.kv tr.chg td:last-child{color:var(--accent);font-weight:600}
+.tabs{display:flex;gap:4px;padding:8px 8px 0;border-bottom:1px solid var(--line)}
+.tabs button{font:12px var(--mono);background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;color:var(--mute);cursor:pointer}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+pre.code{border-radius:0 0 12px 12px;background:var(--panel);padding:14px 0;counter-reset:l;max-height:560px}
+pre.code .ln{display:block;padding:0 16px 0 0;white-space:pre}
+pre.code .ln::before{counter-increment:l;content:counter(l);display:inline-block;width:3em;padding-right:14px;text-align:right;color:var(--mute);opacity:.6}
+.tk-k{color:var(--accent)}.tk-s{color:var(--cool)}.tk-c{color:var(--mute);font-style:italic}.tk-n{color:var(--warm)}
+footer{color:var(--mute);font:12px var(--mono);border-top:1px solid var(--line);padding-top:18px}
+@media(max-width:900px){.wrap{grid-template-columns:1fr;gap:0;padding:0 18px}nav.toc{display:none}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style></head>
+<body><div id="root"></div>
+<script id="spec" type="application/json">{"kind":"lld","title":"Parking lot","subtitle":"Which spot does a vehicle get, what does the stay cost, and how do you keep the design open to change.","idea":"Keep the lot's bookkeeping dull and push every policy question, which spot and what price, behind a small interface so each can change on its own.","sections":[{"type":"requirements","title":"What we are building","functional":["Vehicles of three types (motorcycle, car, truck) enter and receive a ticket.","Each vehicle is assigned a free spot it fits in.","On exit the ticket is turned into a fee based on time and spot size.","The lot knows when it is full for a given vehicle type."],"nonfunctional":["Adding a pricing rule or allocation rule must not change ParkingLot.","Two gates must never assign the same spot.","All state needed to price a stay is on the ticket."],"outOfScope":["Payment processing","Reservations","Multi-lot routing"]},{"type":"classes","title":"Classes and relationships","lede":"Click a class for its role.","hint":"Click a class for its role. The two strategy interfaces are where the design bends.","classes":[{"name":"ParkingLot","at":[1,0],"fields":["spots: Spot[]","tickets: Map\u003cid, Ticket>","allocator: AllocationStrategy","pricing: PricingStrategy"],"methods":["park(vehicle, now): Ticket","unpark(ticketId, now): fee"],"role":"The only class with state that changes. It coordinates and decides nothing about policy: it asks the allocator for a spot and the pricing strategy for a fee."},{"name":"Spot","at":[0,0],"fields":["id","size: S | M | L","level","plate: string | null"],"methods":["free: boolean"],"role":"One physical space. Knows its size and who is in it."},{"name":"Ticket","at":[2,0],"fields":["id","plate","spotId","entry: seconds"],"methods":[],"role":"A receipt that carries everything needed to price the stay later, so pricing never has to look anything up."},{"name":"Vehicle","at":[0,1],"fields":["plate","type"],"methods":[],"role":"Input to the lot. Only its type matters for fitting."},{"name":"AllocationStrategy","at":[1,1],"stereotype":"interface","fields":[],"methods":["pick(spots, vehicle): Spot | null"],"role":"Policy: which free spot. Swap it to prefer low levels, spread wear, or keep large spots free."},{"name":"SmallestFit","at":[1,2],"fields":[],"methods":["pick(spots, vehicle)"],"role":"The default: the smallest free spot that fits, nearest level first."},{"name":"PricingStrategy","at":[2,1],"stereotype":"interface","fields":[],"methods":["charge(ticket, spot, exit): fee"],"role":"Policy: what a stay costs. Hourly today; flat, tiered or surge tomorrow."},{"name":"HourlyPricing","at":[2,2],"fields":["rate: size -> per hour"],"methods":["charge(ticket, spot, exit)"],"role":"Rounds the stay up to whole hours, minimum one, times the rate for the spot size."}],"relations":[{"from":"ParkingLot","to":"Spot","type":"has","label":"1..*"},{"from":"ParkingLot","to":"Ticket","type":"has","label":"0..*"},{"from":"ParkingLot","to":"AllocationStrategy","type":"uses"},{"from":"ParkingLot","to":"PricingStrategy","type":"uses"},{"from":"SmallestFit","to":"AllocationStrategy","type":"implements"},{"from":"HourlyPricing","to":"PricingStrategy","type":"implements"},{"from":"Vehicle","to":"AllocationStrategy","type":"uses"}]},{"type":"sequence","title":"Parking a vehicle","hint":"Press play. Each step shows what that message is for.","actors":["Gate","ParkingLot","Allocator","Spot"],"messages":[{"from":"Gate","to":"ParkingLot","text":"park(vehicle, now)","note":"A gate hands over the vehicle and the current time."},{"from":"ParkingLot","to":"ParkingLot","text":"reject duplicate plate","note":"Fail fast: a plate that already has a ticket cannot park again."},{"from":"ParkingLot","to":"Allocator","text":"pick(spots, vehicle)","note":"Policy lives here. The lot does not know how a spot is chosen."},{"from":"Allocator","to":"ParkingLot","text":"spot or null","ret":true,"note":"Null means nothing fits. The lot raises LotFull."},{"from":"ParkingLot","to":"Spot","text":"occupy(plate)","note":"This write is the one that must be atomic if two gates run at once (see the concurrency answer below)."},{"from":"ParkingLot","to":"Gate","text":"Ticket","ret":true,"note":"The ticket carries the entry time. Pricing later needs nothing else."}]},{"type":"states","title":"Life of a spot","lede":"Fire events. The machine only allows the transitions in its table, the same table the code enforces.","initial":"free","states":[{"id":"free","label":"Free","at":[1,0],"note":"Available to the allocator."},{"id":"occupied","label":"Occupied","at":[2,0],"note":"A ticket points at this spot."},{"id":"reserved","label":"Reserved","at":[0,0],"note":"Held for a booking (an extension, not built here)."},{"id":"oos","label":"Out of service","at":[1,1],"note":"Skipped by every allocator."}],"transitions":[{"from":"free","to":"occupied","event":"park","note":"ticket issued"},{"from":"occupied","to":"free","event":"unpark","note":"fee charged, ticket closed"},{"from":"free","to":"oos","event":"close"},{"from":"oos","to":"free","event":"reopen"},{"from":"free","to":"reserved","event":"reserve"},{"from":"reserved","to":"occupied","event":"arrive","bend":-62},{"from":"reserved","to":"free","event":"expire"}]},{"type":"scenario","title":"Run it","lede":"These steps were produced by running the reference implementation. Changed values are highlighted.","steps":[{"title":"Empty lot","call":"makeLot()","note":"Two small, two medium and one large spot, one level.","state":{"S1 (S)":"free","S2 (S)":"free","M1 (M)":"free","M2 (M)":"free","L1 (L)":"free","open tickets":0}},{"title":"Motorcycle arrives","call":"park(motorcycle \"MC-1\", t=0)","result":"S1","note":"The allocator picks the smallest spot that fits, so the motorcycle takes a small one and leaves bigger spots for bigger vehicles.","state":{"S1 (S)":"MC-1","S2 (S)":"free","M1 (M)":"free","M2 (M)":"free","L1 (L)":"free","open tickets":1}},{"title":"Car arrives","call":"park(car \"CAR-1\", t=60)","result":"M1","state":{"S1 (S)":"MC-1","S2 (S)":"free","M1 (M)":"CAR-1","M2 (M)":"free","L1 (L)":"free","open tickets":2}},{"title":"Second car","call":"park(car \"CAR-2\", t=120)","result":"M2","state":{"S1 (S)":"MC-1","S2 (S)":"free","M1 (M)":"CAR-1","M2 (M)":"CAR-2","L1 (L)":"free","open tickets":3}},{"title":"Third car","call":"park(car \"CAR-3\", t=180)","result":"L1","note":"Medium spots are gone, so the car takes the large spot. Legal, but it is the design's weak point.","state":{"S1 (S)":"MC-1","S2 (S)":"free","M1 (M)":"CAR-1","M2 (M)":"CAR-2","L1 (L)":"CAR-3","open tickets":4}},{"title":"Truck arrives","call":"park(truck \"TRK-1\", t=240)","result":"LotFull: no free spot for a truck","note":"A free small spot exists, but a truck fits only in a large one. The lot is full for trucks while three spots sit idle.","state":{"S1 (S)":"MC-1","S2 (S)":"free","M1 (M)":"CAR-1","M2 (M)":"CAR-2","L1 (L)":"CAR-3","open tickets":4}},{"title":"Third car leaves","call":"unpark(ticket 4, t=7800)","result":"fee = 12","note":"2h10m rounds up to 3 hours at 4 per hour for a large spot.","state":{"S1 (S)":"MC-1","S2 (S)":"free","M1 (M)":"CAR-1","M2 (M)":"CAR-2","L1 (L)":"free","open tickets":3}},{"title":"Truck retries","call":"park(truck \"TRK-1\", t=7900)","result":"L1","state":{"S1 (S)":"MC-1","S2 (S)":"free","M1 (M)":"CAR-1","M2 (M)":"CAR-2","L1 (L)":"TRK-1","open tickets":4}},{"title":"Same car twice","call":"park(car \"CAR-1\", t=8000)","result":"Error: CAR-1 is already parked","note":"A plate that already holds a ticket is rejected before any spot is touched.","state":{"S1 (S)":"MC-1","S2 (S)":"free","M1 (M)":"CAR-1","M2 (M)":"CAR-2","L1 (L)":"TRK-1","open tickets":4}}]},{"type":"code","title":"The code","lede":"This is the exact file that produced the scenario above.","files":[{"name":"lot.mjs","src":"// Reference implementation. The page runs this file to produce its scenario steps,\n// and shows this same file in the code tab, so what you read is what ran.\n\nconst FITS = { motorcycle: [\"S\", \"M\", \"L\"], car: [\"M\", \"L\"], truck: [\"L\"] };\nconst RANK = { S: 0, M: 1, L: 2 };\n\nexport class LotFull extends Error {}\nexport class UnknownTicket extends Error {}\n\nexport class Vehicle {\n  constructor(plate, type) { this.plate = plate; this.type = type; }\n}\n\nexport class Spot {\n  constructor(id, size, level) { this.id = id; this.size = size; this.level = level; this.plate = null; }\n  get free() { return this.plate === null; }\n}\n\nexport class Ticket {\n  constructor(id, plate, spotId, entry) { this.id = id; this.plate = plate; this.spotId = spotId; this.entry = entry; }\n}\n\n// Strategy: which free spot does a vehicle get?\nexport class SmallestFit {\n  pick(spots, vehicle) {\n    return spots\n      .filter((s) => s.free && FITS[vehicle.type].includes(s.size))\n      .sort((a, b) => RANK[a.size] - RANK[b.size] || a.level - b.level || a.id.localeCompare(b.id))[0] ?? null;\n  }\n}\n\n// Strategy: what does a stay cost?\nexport class HourlyPricing {\n  constructor(ratePerHour) { this.rate = ratePerHour; }\n  charge(ticket, spot, exitSec) {\n    const hours = Math.max(1, Math.ceil((exitSec - ticket.entry) / 3600));\n    return hours * this.rate[spot.size];\n  }\n}\n\nexport class ParkingLot {\n  constructor(spots, allocator, pricing) {\n    this.spots = spots; this.allocator = allocator; this.pricing = pricing;\n    this.tickets = new Map(); this.nextId = 1;\n  }\n  park(vehicle, nowSec) {\n    for (const t of this.tickets.values()) if (t.plate === vehicle.plate) throw new Error(`${vehicle.plate} is already parked`);\n    const spot = this.allocator.pick(this.spots, vehicle);\n    if (!spot) throw new LotFull(`no free spot for a ${vehicle.type}`);\n    spot.plate = vehicle.plate;\n    const ticket = new Ticket(this.nextId++, vehicle.plate, spot.id, nowSec);\n    this.tickets.set(ticket.id, ticket);\n    return ticket;\n  }\n  unpark(ticketId, nowSec) {\n    const ticket = this.tickets.get(ticketId);\n    if (!ticket) throw new UnknownTicket(`ticket ${ticketId}`);\n    const spot = this.spots.find((s) => s.id === ticket.spotId);\n    const fee = this.pricing.charge(ticket, spot, nowSec);\n    spot.plate = null;\n    this.tickets.delete(ticketId);\n    return fee;\n  }\n  snapshot() {\n    const out = {};\n    for (const s of this.spots) out[`${s.id} (${s.size})`] = s.plate ?? \"free\";\n    out[\"open tickets\"] = this.tickets.size;\n    return out;\n  }\n}\n\nexport function makeLot() {\n  const spots = [\n    new Spot(\"S1\", \"S\", 1), new Spot(\"S2\", \"S\", 1),\n    new Spot(\"M1\", \"M\", 1), new Spot(\"M2\", \"M\", 1),\n    new Spot(\"L1\", \"L\", 1),\n  ];\n  return new ParkingLot(spots, new SmallestFit(), new HourlyPricing({ S: 1, M: 2, L: 4 }));\n}\n"}]},{"type":"patterns","title":"Patterns used, and why","items":[{"name":"Strategy (allocation)","where":"`AllocationStrategy` and `SmallestFit`.","why":"Spot choice is the part most likely to change. Behind an interface, a new rule is a new class, not an edit to ParkingLot."},{"name":"Strategy (pricing)","where":"`PricingStrategy` and `HourlyPricing`.","why":"Same reasoning, and prices change for business reasons far more often than the lot changes."},{"name":"Value object","where":"`Ticket`.","why":"It carries the entry time and spot, so charging a fee needs no second lookup and cannot disagree with what was recorded."},{"name":"Not used: inheritance for vehicles","where":"`Vehicle` is one class with a type field.","why":"The three types differ only in which sizes they fit. A class hierarchy would add structure with no behaviour to put in it."}]},{"type":"qa","title":"What an interviewer asks next","items":[{"q":"How do you make park() safe with two gates?","a":["The dangerous window is between picking a spot and marking it taken. Make that one atomic step: a lock around the allocation, or a compare-and-set on the spot (set plate only if it is still empty) with a retry on failure. A per-spot lock scales better than one lock on the whole lot, but then `pick` must tolerate a spot being taken underneath it."]},{"q":"The scenario shows a car taking the last large spot. Is that a bug?","a":["It is a policy question, which is why it lives in the strategy. A stricter allocator could refuse to place cars in large spots while any truck demand exists, or keep a reserve count of large spots. The lot class would not change."]},{"q":"How do you add EV charging spots?","a":["Add a spot attribute and let the allocator filter on it, or add a new size-like category. If a vehicle needs charging, the allocator looks for spots with a charger first. ParkingLot is unchanged because it never looks inside the choice."]},{"q":"What if the lot has thousands of spots?","a":["Scanning every spot on each arrival is linear. Keep a free list per size, ordered by level, and pick from the front. The strategy interface stays the same; only SmallestFit's internals change."]}]}]}</script>
+<script>/* sysdesign runtime. Renders a page from the JSON spec in <script id="spec">.
+   No dependencies. Everything on the page is computed from the spec's own
+   inputs and formulas, so numbers in prose, tables and the simulation agree. */
+(function () {
+  "use strict";
+  var SPEC = JSON.parse(document.getElementById("spec").textContent);
+  var S = { p: {}, r: {}, m: null }; // params, estimation rows, last sim result
+  var listeners = [];
+  var SVG = "http://www.w3.org/2000/svg";
+
+  // ---------- helpers ----------
+  function h(tag, attrs) {
+    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan)$/.test(tag);
+    var el = svg ? document.createElementNS(SVG, tag) : document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      var v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k === "class") el.setAttribute("class", v);
+      else if (k === "html") el.innerHTML = v;
+      else if (k.slice(0, 2) === "on") el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v === true ? "" : v);
+    }
+    for (var i = 2; i < arguments.length; i++) add(el, arguments[i]);
+    return el;
+  }
+  function add(el, c) {
+    if (c == null || c === false) return;
+    if (Array.isArray(c)) c.forEach(function (x) { add(el, x); });
+    else el.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
+  }
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
+  function md(s) { // tiny markdown: **bold**, `code`
+    return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  }
+  function paras(arr) { return (Array.isArray(arr) ? arr : [arr]).map(function (t) { return h("p", { html: md(t) }); }); }
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+
+  var H = {
+    min: Math.min, max: Math.max, ceil: Math.ceil, floor: Math.floor, round: Math.round,
+    log2: Math.log2, log10: Math.log10, log: Math.log, pow: Math.pow, sqrt: Math.sqrt, abs: Math.abs, clamp: clamp,
+    // Hit ratio of an ideal cache holding the c most popular of n items when popularity is Zipf(s).
+    zipf: function (c, n, s) {
+      c = Math.max(1, Math.min(c, n)); s = s == null ? 1 : s;
+      var Hn = function (k) { return Math.abs(s - 1) < 1e-6 ? Math.log(k) + 0.5772 : (Math.pow(k, 1 - s) - 1) / (1 - s) + 1; };
+      return clamp(Hn(c) / Hn(n), 0, 1);
+    }
+  };
+  var cache = {};
+  function val(x, extra) {
+    if (typeof x !== "string" || x.charAt(0) !== "=") return x;
+    var f = cache[x];
+    if (!f) {
+      try { f = cache[x] = new Function("p", "r", "m", "H", "with(H){return (" + x.slice(1) + ")}"); }
+      catch (e) { fail("bad expression " + x + ": " + e.message); f = function () { return 0; }; }
+    }
+    try { var v = f(S.p, S.r, extra || S.m, H); return v == null || isNaN(v) && typeof v === "number" ? 0 : v; }
+    catch (e) { fail("expression " + x + ": " + e.message); return 0; }
+  }
+  function fail(msg) { document.body.dataset.error = (document.body.dataset.error || "") + msg + " | "; }
+  function fmt(v, f, unit) {
+    if (typeof v !== "number") return String(v);
+    var s;
+    if (f === "pct") s = (v * 100).toFixed(v < 0.1 ? 2 : 1) + "%";
+    else if (f === "bytes") s = scale(v, ["B", "KB", "MB", "GB", "TB", "PB", "EB"], 1000);
+    else if (f === "ms") s = v < 10 ? v.toFixed(1) + " ms" : Math.round(v) + " ms";
+    else if (f === "onoff") return v ? "On" : "Off";
+    else if (f === "int") s = Math.round(v).toLocaleString("en-US");
+    else s = si(v);
+    return unit && f !== "bytes" && f !== "ms" && f !== "pct" ? s + " " + unit : s;
+  }
+  function si(v) {
+    var a = Math.abs(v);
+    if (a >= 1e12) return (v / 1e12).toFixed(2).replace(/\.?0+$/, "") + "T";
+    if (a >= 1e9) return (v / 1e9).toFixed(2).replace(/\.?0+$/, "") + "B";
+    if (a >= 1e6) return (v / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M";
+    if (a >= 1e4) return (v / 1e3).toFixed(1).replace(/\.?0+$/, "") + "K";
+    if (a >= 100) return Math.round(v).toLocaleString("en-US");
+    if (a >= 1) return v.toFixed(1).replace(/\.0$/, "");
+    if (a === 0) return "0";
+    return v.toPrecision(2);
+  }
+  function scale(v, units, base) { var i = 0; while (Math.abs(v) >= base && i < units.length - 1) { v /= base; i++; } return v.toFixed(v < 10 ? 1 : 0).replace(/\.0$/, "") + " " + units[i]; }
+
+  // ---------- reactive store ----------
+  function declareParams() {
+    (SPEC.sections || []).forEach(function (s) {
+      (s.inputs || []).concat(s.controls || []).forEach(function (c) { if (c.id && c.value != null) S.p[c.id] = c.value; });
+    });
+  }
+  var DEFAULTS = {};
+  function onChange(fn) { listeners.push(fn); }
+  function recompute() {
+    (SPEC.sections || []).forEach(function (s) {
+      (s.rows || []).forEach(function (row) { if (row.id) S.r[row.id] = val(row.expr, null); });
+    });
+    var arch = (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0];
+    S.m = arch ? simulate(arch) : null;
+    // rows that read the simulation (m) get a second pass
+    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id) S.r[row.id] = val(row.expr, S.m); }); });
+    listeners.forEach(function (f) { f(); });
+    if (S.m) document.body.dataset.sim = JSON.stringify({ rps: S.m.rps, err: S.m.err, lat: S.m.lat, bottleneck: S.m.bottleneck });
+  }
+  function setParam(id, v) { S.p[id] = v; recompute(); }
+
+  // ---------- fluid flow simulation ----------
+  // A request rate enters at source nodes and is split along edges. Each node serves up to
+  // instances x capacity requests per second; the rest is shed. Latency per node is the
+  // service time stretched by 1/(1-utilisation), the M/M/1 shape. Cache nodes terminate
+  // `hit` of their traffic. Async edges load their targets but are not on the user's path.
+  function simulate(arch) {
+    var nodes = arch.nodes, by = {}, i;
+    nodes.forEach(function (n) { by[n.id] = n; });
+    var out = {}, inn = {};
+    nodes.forEach(function (n) { out[n.id] = []; inn[n.id] = []; });
+    arch.edges.forEach(function (e) { out[e.from].push(e); inn[e.to].push(e); });
+    // topological order
+    var indeg = {}, order = [], q = [];
+    nodes.forEach(function (n) { indeg[n.id] = inn[n.id].length; if (!indeg[n.id]) q.push(n.id); });
+    while (q.length) { var id = q.shift(); order.push(id); out[id].forEach(function (e) { if (--indeg[e.to] === 0) q.push(e.to); }); }
+    if (order.length !== nodes.length) { fail("architecture has a cycle"); return null; }
+    var res = { nodes: {}, edges: [] };
+    var flow = {}; // edge index -> rps
+    arch.edges.forEach(function (e, k) { e._k = k; });
+    order.forEach(function (id) {
+      var n = by[id], r = res.nodes[id] = { id: id };
+      var inflow = n.rps != null ? val(n.rps) : 0;
+      inn[id].forEach(function (e) { inflow += flow[e._k] || 0; });
+      var inst = n.instances != null ? Math.max(0, val(n.instances)) : 1;
+      var cap = n.cap != null ? val(n.cap) : Infinity;
+      var total = inst * cap;
+      var acc = Math.min(inflow, total);
+      var rho = total === Infinity ? 0 : total > 0 ? inflow / total : (inflow > 0 ? 9 : 0);
+      var svc = n.ms != null ? val(n.ms) : 0;
+      r.inflow = inflow; r.inst = inst; r.cap = cap; r.total = total;
+      r.accepted = acc; r.shed = inflow - acc; r.util = rho; r.accFrac = inflow > 0 ? acc / inflow : 1;
+      r.latency = svc ? svc / (1 - Math.min(rho, 0.97)) : 0;
+      r.hit = n.hit != null ? clamp(val(n.hit), 0, 1) : 0;
+      r.growth = n.kind === "queue" && inflow > total ? inflow - total : 0; // backlog growth per second
+      // split accepted traffic across outgoing edges
+      var outs = out[id], eq = outs.filter(function (e) { return e.share == null && !e.call && !e.async; }).length;
+      outs.forEach(function (e) {
+        var sh = e.share != null ? val(e.share) : (e.call || e.async) ? 1 : 1 / Math.max(1, eq);
+        if (e.miss) sh *= (1 - r.hit);
+        var mult = e.mult != null ? val(e.mult) : 1;
+        flow[e._k] = acc * sh * mult;
+        res.edges[e._k] = { flow: flow[e._k], share: sh, mult: mult };
+      });
+    });
+    // success probability and expected latency of a request entering each node (sync edges only)
+    var memo = {};
+    function path(id) {
+      if (memo[id]) return memo[id];
+      var r = res.nodes[id], sync = out[id].filter(function (e) { return !e.async; });
+      var alts = sync.filter(function (e) { return !e.call; }), calls = sync.filter(function (e) { return e.call; });
+      var s = 0, l = r.latency, cover = 0;
+      alts.forEach(function (e) {
+        var sh = res.edges[e._k].share, c = path(e.to);
+        s += sh * c.s; l += sh * c.l; cover += sh;
+      });
+      var hitShare = r.hit && alts.some(function (e) { return e.miss; }) ? r.hit : 0;
+      s += hitShare; cover += hitShare;
+      if (!alts.length) s = 1; else if (cover < 1) s += 1 - cover; // traffic with nowhere to go ends here, successfully
+      calls.forEach(function (e) { // calls every request may make: all must succeed, latencies add
+        var sh = res.edges[e._k].share, c = path(e.to);
+        s *= (1 - sh) + sh * c.s; l += sh * c.l;
+      });
+      return memo[id] = { s: s * r.accFrac, l: l };
+    }
+    var srcs = nodes.filter(function (n) { return n.rps != null; }), tot = 0, ok = 0, lat = 0;
+    srcs.forEach(function (n) {
+      if (n.internal) return;
+      var rate = res.nodes[n.id].inflow, p = path(n.id); tot += rate; ok += rate * p.s; lat += rate * p.l;
+      res.nodes[n.id].path = p;
+    });
+    res.rps = tot; res.served = ok; res.err = tot > 0 ? 1 - ok / tot : 0; res.lat = tot > 0 ? lat / tot : 0;
+    var worst = null;
+    nodes.forEach(function (n) { var r = res.nodes[n.id]; if (r.total !== Infinity && (!worst || r.util > res.nodes[worst].util)) worst = n.id; });
+    res.bottleneck = worst;
+    return res;
+  }
+
+  // ---------- sections ----------
+  var builders = {};
+
+  builders.text = function (s) { return [paras(s.body || [])]; };
+
+  builders.requirements = function (s) {
+    function col(t, items) { return h("div", { class: "card" }, h("h3", null, t), h("ul", null, (items || []).map(function (x) { return h("li", { html: md(x) }); }))); }
+    return [h("div", { class: "grid g3" }, col("Functional", s.functional), col("Non-functional", s.nonfunctional), s.outOfScope ? col("Out of scope", s.outOfScope) : null)];
+  };
+
+  builders.estimation = function (s) {
+    var outs = [], inputs = h("div", { class: "card" }, h("h3", null, "Assumptions (drag)"));
+    (s.inputs || []).forEach(function (c) {
+      var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || "any", value: c.value, "aria-label": c.label });
+      var lg = c.log;
+      if (lg) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; inp.value = Math.log10(c.value); }
+      inp.addEventListener("input", function () { setParam(c.id, lg ? Math.pow(10, +inp.value) : +inp.value); });
+      onChange(function () { o.textContent = fmt(S.p[c.id], c.fmt, c.unit); });
+      inputs.appendChild(h("div", { class: "inp" }, h("label", null, c.label), o, inp));
+    });
+    var tb = h("table", { class: "rows" });
+    (s.rows || []).forEach(function (row) {
+      var td = h("td");
+      onChange(function () { td.textContent = fmt(val(row.expr), row.fmt, row.unit); });
+      tb.appendChild(h("tr", null, h("td", null, row.label, row.why ? h("span", { class: "why", html: md(row.why) }) : null), td));
+    });
+    return [paras(s.body || []), h("div", { class: "est" }, inputs, h("div", { class: "card" }, h("h3", null, "Derived"), tb))];
+  };
+
+  builders.api = function (s) {
+    return [h("div", { class: "grid" }, (s.endpoints || []).map(function (e) {
+      return h("div", { class: "card ep" },
+        h("span", { class: "m " + e.method }, e.method), h("span", { class: "p" }, e.path),
+        e.desc ? h("span", { class: "d", html: md(e.desc) }) : null,
+        e.req ? h("pre", null, e.req) : null, e.res ? h("pre", null, e.res) : null);
+    }))];
+  };
+
+  builders.data = function (s) {
+    return [paras(s.body || []), h("div", { class: "grid g2" }, (s.tables || []).map(function (t) {
+      return h("div", { class: "card" }, h("span", { class: "store" }, t.store || ""), h("h3", null, t.name),
+        h("table", { class: "cols" }, (t.columns || []).map(function (c) {
+          return h("tr", null, h("td", { class: "k" }, c.key || ""), h("td", null, c.name), h("td", { class: "t" }, c.type || ""), h("td", { class: "nt" }, c.note || ""));
+        })), t.why ? h("p", { style: "margin:10px 0 0;font-size:14px;color:var(--mute)", html: md(t.why) }) : null);
+    }))];
+  };
+
+  builders.tradeoffs = function (s) {
+    return (s.items || []).map(function (t) {
+      return h("div", { style: "margin-bottom:26px" }, h("p", { html: "<b>" + md(t.question) + "</b>" }),
+        h("div", { class: "grid g2" }, t.options.map(function (o) {
+          return h("div", { class: "card opt" + (o.pick ? " pick" : "") }, o.pick ? h("span", { class: "badge" }, "Chosen") : null, h("h4", null, o.name),
+            h("ul", { style: "list-style:none;padding:0;margin:0" }, (o.pros || []).map(function (x) { return h("li", { class: "pro", html: md(x) }); }),
+              (o.cons || []).map(function (x) { return h("li", { class: "con", html: md(x) }); })));
+        })), t.why ? h("p", { style: "margin-top:10px;color:var(--mute)", html: md(t.why) }) : null);
+    });
+  };
+
+  builders.failures = function (s) {
+    return [h("div", { class: "grid g2" }, (s.items || []).map(function (f) {
+      return h("div", { class: "card fail" }, h("h4", null, f.what),
+        h("dl", null, h("dt", null, "What happens"), h("dd", { html: md(f.effect) }), h("dt", null, "Mitigation"), h("dd", { html: md(f.mitigation) })),
+        f.inject ? h("button", { class: "chip", style: "margin-top:12px", onclick: function () { applyPreset(f.inject); location.hash = "#" + (SPEC.sections.filter(function (x) { return x.type === "arch"; })[0] || {}).id; } }, "Inject in the simulation") : null);
+    }))];
+  };
+
+  builders.qa = function (s) {
+    return (s.items || []).map(function (x) { return h("details", { class: "q" }, h("summary", null, x.q), h("div", { class: "a" }, paras(x.a))); });
+  };
+
+  builders.patterns = function (s) {
+    return [h("div", { class: "grid g2" }, (s.items || []).map(function (x) {
+      return h("div", { class: "card" }, h("h3", null, x.name), h("p", { style: "margin:0 0 6px", html: md(x.where) }), h("p", { style: "margin:0;color:var(--mute);font-size:14px", html: md(x.why) }));
+    }))];
+  };
+
+  // ----- architecture simulator -----
+  var presetHooks = [];
+  function applyPreset(set) {
+    // a preset is absolute: start from the page's defaults, then apply it
+    for (var d in DEFAULTS) S.p[d] = DEFAULTS[d];
+    for (var k in set) S.p[k] = set[k];
+    recompute(); presetHooks.forEach(function (f) { f(); });
+  }
+
+  builders.arch = function (s) {
+    var NW = 152, NH = 60, GX = 72, GY = 30, PAD = 20;
+    var nodes = s.nodes, by = {}, depth = {};
+    nodes.forEach(function (n) { by[n.id] = n; depth[n.id] = 0; });
+    for (var pass = 0; pass < nodes.length; pass++) s.edges.forEach(function (e) { depth[e.to] = Math.max(depth[e.to], depth[e.from] + 1); });
+    var cols = {}, maxD = 0;
+    nodes.forEach(function (n) { var d = depth[n.id]; (cols[d] = cols[d] || []).push(n); maxD = Math.max(maxD, d); });
+    var maxRows = 0; for (var c in cols) maxRows = Math.max(maxRows, cols[c].length);
+    var W = PAD * 2 + (maxD + 1) * NW + maxD * GX, Ht = PAD * 2 + maxRows * NH + (maxRows - 1) * GY;
+    nodes.forEach(function (n) {
+      var list = cols[depth[n.id]], idx = list.indexOf(n), colH = list.length * NH + (list.length - 1) * GY;
+      n._x = PAD + depth[n.id] * (NW + GX); n._y = PAD + (Ht - 2 * PAD - colH) / 2 + idx * (NH + GY);
+      if (n.row != null) n._y = PAD + n.row * (NH + GY);
+    });
+    var svg = h("svg", { viewBox: "0 0 " + W + " " + Ht, role: "img", "aria-label": s.title || "architecture" });
+    var edgeG = h("g"), nodeG = h("g"), dotG = h("g");
+    svg.appendChild(edgeG); svg.appendChild(dotG); svg.appendChild(nodeG);
+    var edgeEls = s.edges.map(function (e, k) {
+      var a = by[e.from], b = by[e.to];
+      var x1 = a._x + NW, y1 = a._y + NH / 2, x2 = b._x, y2 = b._y + NH / 2, mx = (x1 + x2) / 2;
+      var path = h("path", { class: "edge" + (e.async ? " async" : ""), d: "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2 });
+      var lab = e.label ? h("text", { class: "elabel", x: mx, y: (y1 + y2) / 2 - 5, "text-anchor": "middle" }, e.label) : null;
+      edgeG.appendChild(path); if (lab) edgeG.appendChild(lab);
+      return { path: path, len: 0, dots: [], e: e };
+    });
+    var nodeEls = {};
+    var selected = null, detail = h("dl", { class: "detail", style: "display:none" });
+    nodes.forEach(function (n) {
+      var g = h("g", { class: "node", tabindex: 0, role: "button", "aria-label": n.label }), sub = h("text", { class: "s", x: n._x + 12, y: n._y + 41 }), ub = h("rect", { class: "ubar", x: n._x + 10, y: n._y + NH - 9, height: 3, width: 0, rx: 1.5 });
+      g.appendChild(h("rect", { class: "box", x: n._x, y: n._y, width: NW, height: NH, style: "--u:0" }));
+      g.appendChild(h("text", { x: n._x + 12, y: n._y + 23 }, n.label)); g.appendChild(sub); g.appendChild(ub);
+      var pick = function () { selected = selected === n.id ? null : n.id; paintDetail(); paintSel(); };
+      g.addEventListener("click", pick); g.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } });
+      nodeG.appendChild(g); nodeEls[n.id] = { g: g, sub: sub, ub: ub, box: g.firstChild };
+    });
+    function paintSel() { nodes.forEach(function (n) { nodeEls[n.id].g.setAttribute("class", "node" + (selected === n.id ? " sel" : "") + (S.m && S.m.nodes[n.id].total === 0 ? " dead" : "")); }); }
+    function paintDetail() {
+      detail.innerHTML = "";
+      if (!selected) { detail.style.display = "none"; return; }
+      var n = by[selected], r = S.m && S.m.nodes[selected]; detail.style.display = "grid";
+      var rows = [["Role", n.role], ["Why it's here", n.why], ["Scales by", n.scale], ["Fails by", n.fails]];
+      if (r) rows.push(["Load now", si(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + si(r.total) + " capacity (" + Math.round(r.util * 100) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + si(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + si(r.growth) + "/s" : "")]);
+      rows.forEach(function (x) { if (x[1]) { detail.appendChild(h("dt", null, x[0])); detail.appendChild(h("dd", { html: md(x[1]) })); } });
+    }
+    var metricEls = {}, metricBar = h("div", { class: "metrics" });
+    var defs = [
+      { id: "rps", label: "Offered load", get: function (m) { return si(m.rps) + " req/s"; } },
+      { id: "err", label: "Failed requests", get: function (m) { return fmt(m.err, "pct"); }, cls: function (m) { return m.err > 0.05 ? "bad" : m.err > 0.001 ? "warn" : ""; } },
+      { id: "lat", label: "Avg latency", get: function (m) { return fmt(m.lat, "ms"); }, cls: function (m) { return s.latencyBudget && m.lat > s.latencyBudget ? "warn" : ""; } },
+      { id: "bn", label: function (m) { return "Busiest: " + by[m.bottleneck].label; }, get: function (m) { return Math.round(m.nodes[m.bottleneck].util * 100) + "%"; }, cls: function (m) { var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
+    ];
+    (s.metrics || []).forEach(function (x, i) { defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); } }); });
+    defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });
+
+    var note = h("div", { class: "simnote", html: s.intro ? md(s.intro) : "" });
+    var presetBar = h("div", { class: "bar" });
+    var presetBtns = [];
+    (s.presets || []).forEach(function (pr) {
+      var b = h("button", { class: "chip", onclick: function () { applyPreset(pr.set); note.innerHTML = "<b>" + esc(pr.label) + ".</b> " + md(pr.note || ""); b.classList.add("on"); } }, pr.label);
+      presetBtns.push({ b: b, pr: pr }); presetBar.appendChild(b);
+    });
+    presetHooks.push(function () { presetBtns.forEach(function (x) { var on = true, want = {}; for (var d in DEFAULTS) want[d] = DEFAULTS[d]; for (var k in x.pr.set) want[k] = x.pr.set[k]; for (var w in want) if (S.p[w] !== want[w]) on = false; x.b.classList.toggle("on", on); }); });
+    var ctrls = h("div", { class: "ctrls" });
+    var ctrlSync = [];
+    (s.controls || []).forEach(function (c) {
+      var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || 1, value: c.value, "aria-label": c.label });
+      if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
+      inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); presetHooks.forEach(function (f) { f(); }); });
+      ctrlSync.push(function () { var v = S.p[c.id]; inp.value = c.log ? Math.log10(v) : v; o.textContent = fmt(v, c.fmt, c.unit); });
+      ctrls.appendChild(h("div", { class: "inp" }, h("label", null, c.label), o, inp));
+    });
+
+    var dots = [], t0 = performance.now(), reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function paint() {
+      var m = S.m; if (!m) return;
+      ctrlSync.forEach(function (f) { f(); });
+      nodes.forEach(function (n) {
+        var r = m.nodes[n.id], el = nodeEls[n.id];
+        el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util * 0.35, 0, 0.9));
+        var txt = r.total === Infinity ? (n.kind || "") : r.total === 0 ? "DOWN" : r.inst + "× " + si(r.cap) + "/s";
+        if (n.hit != null) txt = Math.round(r.hit * 100) + "% hit";
+        if (n.rps != null && r.total === Infinity) txt = si(r.inflow) + "/s";
+        el.sub.textContent = txt;
+        var w = r.total === Infinity ? 0 : clamp(r.util, 0, 1) * (NW - 20);
+        el.ub.setAttribute("width", w); el.ub.setAttribute("class", "ubar" + (r.util >= 1 ? " hot" : r.util > 0.8 ? " warn" : ""));
+      });
+      paintSel(); paintDetail();
+      defs.forEach(function (d) { var e = metricEls[d.id]; e.b.textContent = d.get(m); if (typeof d.label === "function") e.lab.textContent = d.label(m); e.box.className = "metric " + (d.cls ? d.cls(m) : ""); });
+      // edge widths and particle counts follow flow
+      edgeEls.forEach(function (E, k) {
+        var f = m.edges[k] ? m.edges[k].flow : 0;
+        E.path.setAttribute("stroke-width", clamp(1 + Math.log10(1 + f) * 0.7, 1, 5));
+        var want = reduce ? 0 : clamp(Math.round(Math.log2(1 + f) / 2), 0, 9);
+        while (E.dots.length < want) { var d = h("circle", { r: 2.6, class: "dot" + (E.e.async ? " async" : "") }); dotG.appendChild(d); E.dots.push(d); }
+        while (E.dots.length > want) dotG.removeChild(E.dots.pop());
+        if (!E.len) E.len = E.path.getTotalLength();
+      });
+    }
+    function frame(now) {
+      var t = (now - t0) / 1000;
+      edgeEls.forEach(function (E) {
+        if (!E.dots.length) return;
+        if (!E.len) E.len = E.path.getTotalLength();
+        var speed = 110 / Math.max(E.len, 1);
+        E.dots.forEach(function (d, i) { var u = ((t * speed) + i / E.dots.length) % 1, p = E.path.getPointAtLength(u * E.len); d.setAttribute("cx", p.x); d.setAttribute("cy", p.y); });
+      });
+      requestAnimationFrame(frame);
+    }
+    onChange(paint);
+    if (!reduce) requestAnimationFrame(frame);
+    var stage = h("div", { class: "stage" }, svg);
+    return [paras(s.body || []), h("div", { class: "card sim" }, presetBar.childNodes.length ? presetBar : null, stage, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
+  };
+
+  // ----- LLD: class diagram -----
+  builders.classes = function (s) {
+    var cw = 7.2, LH = 17, HD = 30, GX = 64, GY = 56, PAD = 20;
+    var cl = s.classes, by = {};
+    cl.forEach(function (c, i) {
+      by[c.name] = c; c.fields = c.fields || []; c.methods = c.methods || [];
+      var lines = [c.name].concat(c.fields, c.methods);
+      c._w = Math.max(130, Math.ceil(Math.max.apply(null, lines.map(function (x) { return x.length; })) * cw) + 24);
+      c._h = HD + (c.stereotype ? 14 : 0) + Math.max(1, c.fields.length) * LH + 10 + Math.max(1, c.methods.length) * LH + 8;
+      if (!c.at) c.at = [i % 3, Math.floor(i / 3)];
+    });
+    var nc = 0, nr = 0; cl.forEach(function (c) { nc = Math.max(nc, c.at[0] + 1); nr = Math.max(nr, c.at[1] + 1); });
+    var colW = [], rowH = [];
+    for (var i = 0; i < nc; i++) colW[i] = Math.max.apply(null, [0].concat(cl.filter(function (c) { return c.at[0] === i; }).map(function (c) { return c._w; })));
+    for (i = 0; i < nr; i++) rowH[i] = Math.max.apply(null, [0].concat(cl.filter(function (c) { return c.at[1] === i; }).map(function (c) { return c._h; })));
+    cl.forEach(function (c) {
+      var x = PAD, y = PAD; for (var a = 0; a < c.at[0]; a++) x += colW[a] + GX; for (a = 0; a < c.at[1]; a++) y += rowH[a] + GY;
+      c._x = x + (colW[c.at[0]] - c._w) / 2; c._y = y + (rowH[c.at[1]] - c._h) / 2;
+    });
+    var W = PAD * 2 + colW.reduce(function (a, b) { return a + b; }, 0) + GX * (nc - 1), Hh = PAD * 2 + rowH.reduce(function (a, b) { return a + b; }, 0) + GY * (nr - 1);
+    var svg = h("svg", { viewBox: "0 0 " + W + " " + Hh, style: "width:" + Math.min(W, 1000) + "px" });
+    var defs = h("defs");
+    function marker(id, d, fill) { return h("marker", { id: id, viewBox: "0 0 14 14", refX: 13, refY: 7, markerWidth: 12, markerHeight: 12, orient: "auto" }, h("path", { d: d, fill: fill, stroke: "var(--ink)", "stroke-width": 1.2 })); }
+    defs.appendChild(marker("m-tri", "M1,1 L13,7 L1,13 Z", "var(--panel)"));
+    defs.appendChild(marker("m-arr", "M1,2 L13,7 L1,12", "none"));
+    defs.appendChild(h("marker", { id: "m-dia", viewBox: "0 0 16 14", refX: 1, refY: 7, markerWidth: 14, markerHeight: 12, orient: "auto" }, h("path", { d: "M1,7 L8,1 L15,7 L8,13 Z", fill: "var(--ink)", stroke: "var(--ink)", "stroke-width": 1 })));
+    svg.appendChild(defs);
+    function edgePoint(c, tx, ty) { // clip centre-to-target line to c's border
+      var cx = c._x + c._w / 2, cy = c._y + c._h / 2, dx = tx - cx, dy = ty - cy;
+      var sx = dx ? (c._w / 2) / Math.abs(dx) : Infinity, sy = dy ? (c._h / 2) / Math.abs(dy) : Infinity, k = Math.min(sx, sy);
+      return [cx + dx * k, cy + dy * k];
+    }
+    var relG = h("g"); svg.appendChild(relG);
+    (s.relations || []).forEach(function (r) {
+      var a = by[r.from], b = by[r.to]; if (!a || !b) { fail("relation to unknown class " + r.from + "->" + r.to); return; }
+      var p1 = edgePoint(a, b._x + b._w / 2, b._y + b._h / 2), p2 = edgePoint(b, a._x + a._w / 2, a._y + a._h / 2);
+      var dash = r.type === "implements" || r.type === "uses";
+      var ln = h("line", { class: "rel" + (dash ? " dash" : ""), x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1] });
+      if (r.type === "inherits" || r.type === "implements") ln.setAttribute("marker-end", "url(#m-tri)");
+      else if (r.type === "has") ln.setAttribute("marker-start", "url(#m-dia)");
+      else ln.setAttribute("marker-end", "url(#m-arr)");
+      relG.appendChild(ln);
+      if (r.label) relG.appendChild(h("text", { class: "rl", x: (p1[0] + p2[0]) / 2, y: (p1[1] + p2[1]) / 2 - 4, "text-anchor": "middle" }, r.label));
+    });
+    var sel = null, info = h("div", { class: "simnote" }, s.hint || "Click a class to see its role.");
+    var els = {};
+    cl.forEach(function (c) {
+      var g = h("g", { class: "cls", tabindex: 0 });
+      g.appendChild(h("rect", { class: "fr", x: c._x, y: c._y, width: c._w, height: c._h, rx: 6 }));
+      g.appendChild(h("rect", { class: "hd", x: c._x + .6, y: c._y + .6, width: c._w - 1.2, height: HD + (c.stereotype ? 14 : 0) - 1, rx: 5 }));
+      var y = c._y + 19;
+      if (c.stereotype) { g.appendChild(h("text", { class: "st", x: c._x + c._w / 2, y: y, "text-anchor": "middle" }, "«" + c.stereotype + "»")); y += 14; }
+      g.appendChild(h("text", { class: "h", x: c._x + c._w / 2, y: y, "text-anchor": "middle" }, c.name));
+      var yy = c._y + HD + (c.stereotype ? 14 : 0) + 13;
+      (c.fields.length ? c.fields : [""]).forEach(function (f) { g.appendChild(h("text", { x: c._x + 10, y: yy }, f)); yy += LH; });
+      yy += 3; g.appendChild(h("line", { x1: c._x, x2: c._x + c._w, y1: yy - LH + 3, y2: yy - LH + 3, stroke: "var(--ink)", "stroke-width": 1 }));
+      yy += 6;
+      (c.methods.length ? c.methods : [""]).forEach(function (f) { g.appendChild(h("text", { x: c._x + 10, y: yy }, f)); yy += LH; });
+      var pick = function () { sel = sel === c.name ? null : c.name; cl.forEach(function (k) { els[k.name].setAttribute("class", "cls" + (sel === k.name ? " sel" : "")); }); info.innerHTML = sel ? "<b>" + esc(c.name) + ".</b> " + md(c.role || "") : (s.hint || ""); };
+      g.addEventListener("click", pick); g.addEventListener("keydown", function (e) { if (e.key === "Enter") pick(); });
+      svg.appendChild(g); els[c.name] = g;
+    });
+    return [paras(s.body || []), h("div", { class: "card diagram", style: "padding:0" }, h("div", { class: "diagram" }, svg), info)];
+  };
+
+  // ----- LLD: sequence diagram -----
+  builders.sequence = function (s) {
+    var AW = 150, TOP = 14, AH = 34, MG = 46, PAD = 20, n = s.actors.length;
+    var W = PAD * 2 + n * AW, Hh = TOP + AH + (s.messages.length + 1) * MG + 20;
+    var svg = h("svg", { viewBox: "0 0 " + W + " " + Hh, style: "width:" + Math.min(W, 1000) + "px" });
+    svg.appendChild(h("defs", null, h("marker", { id: "sq-a", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, orient: "auto-start-reverse" }, h("path", { d: "M1,1 L9,5 L1,9", fill: "none", stroke: "context-stroke", "stroke-width": 1.5 }))));
+    var ax = {}; s.actors.forEach(function (a, i) { ax[a] = PAD + i * AW + AW / 2; });
+    s.actors.forEach(function (a) {
+      svg.appendChild(h("line", { class: "life", x1: ax[a], x2: ax[a], y1: TOP + AH, y2: Hh - 10 }));
+      svg.appendChild(h("g", { class: "actor" }, h("rect", { x: ax[a] - 60, y: TOP, width: 120, height: AH }), h("text", { x: ax[a], y: TOP + 21, "text-anchor": "middle" }, a)));
+    });
+    var msgEls = [], cur = -1, note = h("div", { class: "grow" }, s.hint || "Press play or step through.");
+    s.messages.forEach(function (m, i) {
+      var y = TOP + AH + (i + 1) * MG, g = h("g", { class: "msg" + (m.ret ? " ret" : "") });
+      if (m.from === m.to) {
+        var x = ax[m.from];
+        g.appendChild(h("path", { d: "M" + x + "," + (y - 10) + " h38 v18 h-36", "marker-end": "url(#sq-a)" }));
+        g.appendChild(h("text", { x: x + 46, y: y + 3 }, m.text));
+      } else {
+        var x1 = ax[m.from], x2 = ax[m.to], dir = x2 > x1 ? 1 : -1;
+        g.appendChild(h("line", { x1: x1, y1: y, x2: x2 - dir * 2, y2: y, "marker-end": "url(#sq-a)" }));
+        g.appendChild(h("text", { x: (x1 + x2) / 2, y: y - 7, "text-anchor": "middle" }, m.text));
+      }
+      svg.appendChild(g); msgEls.push(g);
+    });
+    function show(i) {
+      cur = i; msgEls.forEach(function (g, k) { g.setAttribute("class", "msg" + (s.messages[k].ret ? " ret" : "") + (i >= 0 && k > i ? " off" : "") + (k === i ? " on" : "")); });
+      note.innerHTML = i >= 0 ? "<b>" + (i + 1) + ".</b> " + md(s.messages[i].note || s.messages[i].text) : esc(s.hint || "Press play or step through.");
+    }
+    var timer = null;
+    function stop() { if (timer) { clearInterval(timer); timer = null; play.textContent = "Play"; } }
+    var play = h("button", { class: "chip", onclick: function () { if (timer) return stop(); if (cur >= s.messages.length - 1) show(-1); play.textContent = "Pause"; timer = setInterval(function () { if (cur >= s.messages.length - 1) return stop(); show(cur + 1); }, 1500); } }, "Play");
+    var ctl = h("div", { class: "ctl" }, play,
+      h("button", { class: "chip", onclick: function () { stop(); show(Math.max(-1, cur - 1)); } }, "Back"),
+      h("button", { class: "chip", onclick: function () { stop(); show(Math.min(s.messages.length - 1, cur + 1)); } }, "Next"), note);
+    show(-1);
+    return [paras(s.body || []), h("div", { class: "card", style: "padding:0" }, h("div", { class: "diagram" }, svg), ctl)];
+  };
+
+  // ----- LLD: state machine (runs the transition table) -----
+  builders.states = function (s) {
+    var BW = 128, BH = 44, GX = 70, GY = 70, PAD = 28;
+    var st = s.states, by = {}; st.forEach(function (x, i) { by[x.id] = x; if (!x.at) x.at = [i, 0]; });
+    var nc = 0, nr = 0; st.forEach(function (x) { nc = Math.max(nc, x.at[0] + 1); nr = Math.max(nr, x.at[1] + 1); });
+    var W = PAD * 2 + nc * BW + (nc - 1) * GX, TOP = 14 + Math.max.apply(null, [0].concat(s.transitions.map(function (t) { return t.bend < 0 ? -t.bend : 0; }))), Hh = PAD + TOP + nr * BH + (nr - 1) * GY + 24;
+    st.forEach(function (x) { x._x = PAD + x.at[0] * (BW + GX); x._y = TOP + x.at[1] * (BH + GY); });
+    var svg = h("svg", { viewBox: "0 0 " + W + " " + Hh, style: "width:" + Math.min(W, 1000) + "px", class: "st" });
+    svg.appendChild(h("defs", null, h("marker", { id: "st-a", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 8, markerHeight: 8, orient: "auto" }, h("path", { d: "M1,1 L9,5 L1,9", fill: "none", stroke: "context-stroke", "stroke-width": 1.5 }))));
+    var tEls = [];
+    function key(a, b) { return a < b ? a + "|" + b : b + "|" + a; }
+    var pair = {}; s.transitions.forEach(function (t) { var k = key(t.from, t.to); pair[k] = (pair[k] || 0) + 1; });
+    var seen = {};
+    function clip(c, o) { var dx = o[0] - c[0], dy = o[1] - c[1], sx = dx ? (BW / 2 + 3) / Math.abs(dx) : 1e9, sy = dy ? (BH / 2 + 3) / Math.abs(dy) : 1e9, k = Math.min(sx, sy); return [c[0] + dx * k, c[1] + dy * k]; }
+    s.transitions.forEach(function (t) {
+      var a = by[t.from], b = by[t.to], d, lx, ly, anchor = "middle";
+      if (!a || !b) { fail("transition to unknown state " + t.from + "->" + t.to); return; }
+      if (a === b) {
+        var x = a._x + BW / 2; d = "M" + (x - 18) + "," + a._y + " C" + (x - 30) + "," + (a._y - 38) + " " + (x + 30) + "," + (a._y - 38) + " " + (x + 18) + "," + a._y; lx = x; ly = a._y - 34;
+      } else {
+        var ac = [a._x + BW / 2, a._y + BH / 2], bc = [b._x + BW / 2, b._y + BH / 2], dx = bc[0] - ac[0], dy = bc[1] - ac[1];
+        var k = key(t.from, t.to), idx = seen[k] = (seen[k] || 0) + 1;
+        var bend = t.bend != null ? t.bend : pair[k] > 1 ? (idx === 1 ? 1 : -1) * 22 : 0;
+        var len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, mx = (ac[0] + bc[0]) / 2, my = (ac[1] + bc[1]) / 2;
+        var ctrl = [mx + nx * bend * 2, my + ny * bend * 2];
+        var p1 = clip(ac, ctrl), p2 = clip(bc, ctrl);
+        d = bend ? "M" + p1[0] + "," + p1[1] + " Q" + ctrl[0] + "," + ctrl[1] + " " + p2[0] + "," + p2[1] : "M" + p1[0] + "," + p1[1] + " L" + p2[0] + "," + p2[1];
+        var out = bend ? (bend > 0 ? 1 : -1) : -1, apx = mx + nx * bend, apy = my + ny * bend;
+        if (Math.abs(dx) >= Math.abs(dy)) { lx = apx; ly = apy + (out > 0 ? 19 : -8); }
+        else { lx = apx + out * 9; ly = apy + 4; anchor = out > 0 ? "start" : "end"; }
+      }
+      var path = h("path", { class: "tr", d: d, "marker-end": "url(#st-a)" });
+      svg.appendChild(path); svg.appendChild(h("text", { class: "tl", x: lx, y: ly, "text-anchor": anchor }, t.event + (t.guard ? " [" + t.guard + "]" : "")));
+      tEls.push({ path: path, t: t });
+    });
+    var nEls = {};
+    st.forEach(function (x) {
+      var g = h("g", { class: "stn" + (x.terminal ? " term" : "") }, h("rect", { class: "sb", x: x._x, y: x._y, width: BW, height: BH, rx: 22 }), h("text", { x: x._x + BW / 2, y: x._y + 27, "text-anchor": "middle" }, x.label || x.id));
+      svg.appendChild(g); nEls[x.id] = g;
+    });
+    var curS = s.initial || st[0].id, logEl = h("div", { class: "grow" }), btns = h("div", { class: "ctl", style: "border-top:0;padding-top:0" });
+    var log = [];
+    function paint() {
+      st.forEach(function (x) { var g = nEls[x.id]; g.setAttribute("class", "stn" + (x.terminal ? " term" : "") + (x.id === curS ? " cur" : "")); });
+      tEls.forEach(function (e) { e.path.setAttribute("class", "tr" + (e.t.from === curS ? " live" : "")); });
+      btns.innerHTML = "";
+      var evs = s.transitions.filter(function (t) { return t.from === curS; });
+      btns.appendChild(h("span", { style: "font:12px var(--mono);color:var(--mute)" }, "Fire an event:"));
+      evs.forEach(function (t) { btns.appendChild(h("button", { class: "chip", title: t.note || "", onclick: function () { log.unshift(t.from + " --" + t.event + "--> " + t.to + (t.note ? "  // " + t.note : "")); curS = t.to; paint(); } }, t.event)); });
+      if (!evs.length) btns.appendChild(h("span", { style: "color:var(--mute);font-size:14px" }, "Terminal state. No event leaves it."));
+      logEl.textContent = log.length ? log[0] : (by[curS].note || "");
+    }
+    var reset = h("button", { class: "chip", onclick: function () { curS = s.initial || st[0].id; log = []; paint(); } }, "Reset");
+    paint();
+    return [paras(s.body || []), h("div", { class: "card", style: "padding:0" }, h("div", { class: "diagram" }, svg), btns, h("div", { class: "ctl" }, reset, logEl))];
+  };
+
+  // ----- LLD: scenario stepper (steps are produced by running real code at build time) -----
+  builders.scenario = function (s) {
+    var cur = 0, list = h("ol"), pane = h("div", { class: "pane" });
+    var btns = s.steps.map(function (st, i) { var b = h("button", { onclick: function () { cur = i; paint(); } }, (i + 1) + ". " + st.title); list.appendChild(h("li", null, b)); return b; });
+    function paint() {
+      btns.forEach(function (b, i) { b.className = i === cur ? "on" : ""; });
+      var st = s.steps[cur], prev = cur ? s.steps[cur - 1].state : {};
+      pane.innerHTML = "";
+      pane.appendChild(h("div", { class: "call" }, st.call));
+      if (st.result != null) pane.appendChild(h("p", { html: "→ <code>" + esc(st.result) + "</code>" }));
+      if (st.note) pane.appendChild(h("p", { html: md(st.note), style: "color:var(--mute)" }));
+      var tb = h("table", { class: "kv" });
+      Object.keys(st.state || {}).forEach(function (k) {
+        var raw = st.state[k], v = typeof raw === "string" ? raw : JSON.stringify(raw), pv = typeof prev[k] === "string" ? prev[k] : JSON.stringify(prev[k]);
+        tb.appendChild(h("tr", { class: cur && v !== pv ? "chg" : "" }, h("td", null, k), h("td", null, v)));
+      });
+      pane.appendChild(tb);
+    }
+    paint();
+    return [paras(s.body || []), h("div", { class: "card steps", style: "padding:0" }, list, pane)];
+  };
+
+  // ----- code -----
+  var KW = /\b(class|interface|enum|public|private|protected|static|final|abstract|extends|implements|return|if|else|for|while|new|this|self|def|fn|func|function|const|let|var|import|from|package|void|int|long|double|boolean|bool|string|String|None|null|true|false|True|False|throw|throws|try|catch|switch|case|break|continue|async|await|struct|type|impl|trait|pub|use|mut|lambda|and|or|not|in|is|with|as)\b/g;
+  function hl(line) {
+    var out = "", m, i = 0, re = /(\/\/.*|#.*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+(?:\.\d+)?\b)|(\b[A-Za-z_]\w*\b)/g;
+    while ((m = re.exec(line))) {
+      out += esc(line.slice(i, m.index)); i = re.lastIndex;
+      if (m[1]) out += '<span class="tk-c">' + esc(m[1]) + "</span>";
+      else if (m[2]) out += '<span class="tk-s">' + esc(m[2]) + "</span>";
+      else if (m[3]) out += '<span class="tk-n">' + m[3] + "</span>";
+      else { KW.lastIndex = 0; out += KW.test(m[4]) && m[4].length === m[0].length ? '<span class="tk-k">' + m[4] + "</span>" : esc(m[4]); }
+    }
+    return out + esc(line.slice(i));
+  }
+  builders.code = function (s) {
+    var files = s.files, cur = 0, pre = h("pre", { class: "code" }), tabs = h("div", { class: "tabs" });
+    var tb = files.map(function (f, i) { var b = h("button", { onclick: function () { cur = i; paint(); } }, f.name); tabs.appendChild(b); return b; });
+    function paint() {
+      tb.forEach(function (b, i) { b.className = i === cur ? "on" : ""; });
+      pre.innerHTML = files[cur].src.replace(/\n$/, "").split("\n").map(function (l) { return '<span class="ln">' + hl(l) + "</span>"; }).join("");
+    }
+    paint();
+    return [paras(s.body || []), h("div", { class: "card", style: "padding:0" }, tabs, pre)];
+  };
+
+  // ---------- page assembly ----------
+  function build() {
+    declareParams();
+    for (var dk in S.p) DEFAULTS[dk] = S.p[dk];
+    var root = document.getElementById("root"), secs = SPEC.sections || [];
+    var toc = h("nav", { class: "toc" }, h("div", { class: "brand" }, SPEC.kind === "lld" ? "Low-level design" : "High-level design"));
+    var main = h("main");
+    var hero = h("header", { class: "hero" }, h("span", { class: "kind" }, SPEC.kind === "lld" ? "LLD" : "HLD"), h("h1", null, SPEC.title), SPEC.subtitle ? h("p", { class: "sub" }, SPEC.subtitle) : null,
+      SPEC.idea ? h("div", { class: "idea" }, h("small", null, "The one idea"), SPEC.idea) : null);
+    main.appendChild(hero);
+    secs.forEach(function (s, i) {
+      var b = builders[s.type];
+      if (!b) { fail("unknown section type " + s.type); return; }
+      s.id = s.id || "s" + i;
+      toc.appendChild(h("a", { href: "#" + s.id, "data-id": s.id }, s.title || s.type));
+      main.appendChild(h("section", { id: s.id }, h("h2", null, h("span", { class: "n" }, String(i + 1).padStart(2, "0")), s.title || s.type), s.lede ? h("p", { class: "lede", html: md(s.lede) }) : null, b(s)));
+    });
+    main.appendChild(h("footer", null, "Generated with sysdesign. Every number on this page is computed from the model in the page's own spec."));
+    var theme = h("button", { onclick: function () { var d = document.documentElement; var t = d.dataset.theme === "dark" ? "light" : "dark"; d.dataset.theme = t; theme.textContent = t === "dark" ? "Light" : "Dark"; } }, "Dark");
+    toc.appendChild(theme);
+    root.appendChild(h("div", { class: "wrap" }, toc, main));
+    document.title = SPEC.title + " | " + (SPEC.kind === "lld" ? "LLD" : "HLD");
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) { document.documentElement.dataset.theme = "dark"; theme.textContent = "Light"; }
+    recompute();
+    presetHooks.forEach(function (f) { f(); });
+    if ("IntersectionObserver" in window) {
+      var links = toc.querySelectorAll("a"), io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) links.forEach(function (a) { a.classList.toggle("on", a.dataset.id === e.target.id); }); });
+      }, { rootMargin: "-20% 0px -70% 0px" });
+      main.querySelectorAll("section").forEach(function (x) { io.observe(x); });
+    }
+    document.body.dataset.ready = "1";
+  }
+  window.addEventListener("error", function (e) { fail("js error: " + e.message); });
+  try { build(); } catch (e) { fail("build: " + e.message + " " + (e.stack || "").split("\n")[1]); }
+  window.__sysdesign = { S: S, simulate: simulate, val: val };
+})();
+</script></body></html>

@@ -2,12 +2,13 @@
 // page silently wrong: unknown ids, edges to nowhere, sliders that the model never reads,
 // a pick that is missing, a section type the runtime does not know.
 const TYPES = new Set(["text", "requirements", "estimation", "api", "data", "arch", "tradeoffs", "failures", "qa",
-  "patterns", "classes", "sequence", "states", "scenario", "code"]);
+  "patterns", "classes", "sequence", "states", "scenario", "code", "chart"]);
+const KINDS = ["hld", "lld", "concept"];
 
 export function validate(spec) {
   const bad = [];
   if (!spec.title) bad.push("missing title");
-  if (!["hld", "lld"].includes(spec.kind)) bad.push(`kind must be "hld" or "lld", got ${JSON.stringify(spec.kind)}`);
+  if (!KINDS.includes(spec.kind)) bad.push(`kind must be one of ${KINDS.join(", ")}, got ${JSON.stringify(spec.kind)}`);
   if (!spec.idea) bad.push("missing `idea`: the one-sentence insight the whole page hangs on");
   const secs = spec.sections ?? [];
   if (!secs.length) bad.push("no sections");
@@ -37,6 +38,8 @@ export function validate(spec) {
         if (n.hit != null && !(s.edges ?? []).some((e) => e.from === n.id && e.miss)) bad.push(`arch: cache node ${n.id} has hit but no outgoing edge marked miss:true`);
       }
       if (!(s.presets ?? []).length) bad.push("arch: add presets (10x traffic, kill a node, ...) so the reader can break it");
+      const cyc = findCycle(s.nodes ?? [], s.edges ?? []);
+      if (cyc) bad.push(`arch: edges form a cycle (${cyc.join(" -> ")}). The simulator needs a one-way graph: model a reply as a \`call: true\` edge, not an edge back`);
     }
     if (s.type === "tradeoffs") for (const t of s.items ?? []) if (!t.options?.some((o) => o.pick)) bad.push(`tradeoff "${t.question}" has no chosen option`);
     if (s.type === "classes") {
@@ -50,6 +53,43 @@ export function validate(spec) {
       for (const t of s.transitions ?? []) if (!st.has(t.from) || !st.has(t.to)) bad.push(`states: transition ${t.from}->${t.to} names an unknown state`);
       if (s.initial && !st.has(s.initial)) bad.push("states: initial is not a state");
     }
+    if (s.type === "chart") checkChart(s, params, bad);
   }
   return bad;
+}
+
+function checkChart(s, params, bad) {
+  const where = `chart "${s.title ?? s.id ?? "?"}"`;
+  const x = s.x ?? {}, series = s.series ?? [];
+  if (x.values) { if (!Array.isArray(x.values) || x.values.length < 2) bad.push(`${where}: x.values needs at least two numbers`); }
+  else if (!(typeof x.from === "number" && typeof x.to === "number" && x.from < x.to)) bad.push(`${where}: x needs from < to, or a values list`);
+  if (x.log && (x.values ? Math.min(...x.values) : x.from) <= 0) bad.push(`${where}: a log x axis needs values above 0`);
+  if (x.param && !params.has(x.param)) bad.push(`${where}: x.param "${x.param}" is not a slider on the page`);
+  if (!series.length) bad.push(`${where}: needs at least one series`);
+  if (series.length > 4) bad.push(`${where}: at most 4 series. Split it into two charts`);
+  for (const e of series) {
+    if (!e.label) bad.push(`${where}: every series needs a label`);
+    if (e.y) {
+      if (!x.values) bad.push(`${where}: series "${e.label}" has y data, so x needs a values list`);
+      else if (e.y.length !== x.values.length) bad.push(`${where}: series "${e.label}" has ${e.y.length} y values for ${x.values.length} x values`);
+    } else if (typeof e.expr !== "string" || !e.expr.startsWith("=")) bad.push(`${where}: series "${e.label}" needs expr ("=...") or y data`);
+    else if (!/\bx\b/.test(e.expr) && !x.param) bad.push(`${where}: series "${e.label}" never reads x, so it would be a flat line. Read x, or set x.param`);
+  }
+}
+
+function findCycle(nodes, edges) {
+  const out = new Map(nodes.map((n) => [n.id, []]));
+  for (const e of edges) out.get(e.from)?.push(e.to);
+  const state = new Map(), stack = [];
+  const visit = (id) => {
+    state.set(id, 1); stack.push(id);
+    for (const t of out.get(id) ?? []) {
+      if (state.get(t) === 1) return [...stack.slice(stack.indexOf(t)), t];
+      if (!state.has(t)) { const c = visit(t); if (c) return c; }
+    }
+    state.set(id, 2); stack.pop();
+    return null;
+  };
+  for (const n of nodes) if (!state.has(n.id)) { const c = visit(n.id); if (c) return c; }
+  return null;
 }

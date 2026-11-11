@@ -544,7 +544,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
       { id: "err", label: "Failed requests", get: function (m) { return fmt(m.err, "pct"); }, cls: function (m) { return m.err > 0.05 ? "bad" : m.err > 0.001 ? "warn" : ""; } },
       { id: "lat", label: "Avg latency", get: function (m) { return fmt(m.lat, "ms"); }, cls: function (m) { return s.latencyBudget && m.lat > s.latencyBudget ? "warn" : ""; } },
       // bottleneck is null when no node has a finite capacity
-      { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { return m.bottleneck ? Math.round(m.nodes[m.bottleneck].util * 100) + "%" : "n/a"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
+      { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { var r = m.bottleneck && m.nodes[m.bottleneck]; return !r ? "n/a" : r.total === 0 ? "down" : Math.round(r.util * 100) + "%"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
     ];
     (s.metrics || []).forEach(function (x, i) { defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); } }); });
     defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });
@@ -978,7 +978,11 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
   // ---------- page assembly ----------
   // hld: many machines and scale. lld: object design in one process. concept: how an
   // algorithm, data structure or protocol works (consistent hashing, Raft, Bloom filter).
-  var KIND = { hld: ["HLD", "High-level design"], lld: ["LLD", "Low-level design"], concept: ["Concept", "How it works"] }[SPEC.kind] || ["HLD", "High-level design"];
+  // A page that covers more than one view lists them all: kind: ["hld", "lld"].
+  var KINDS = { hld: ["HLD", "High-level design"], lld: ["LLD", "Low-level design"], concept: ["Concept", "How it works"] };
+  var kinds = [].concat(SPEC.kind || "hld").filter(function (k) { return KINDS[k]; });
+  if (!kinds.length) kinds = ["hld"];
+  var KIND = kinds.length === 1 ? KINDS[kinds[0]] : [kinds.map(function (k) { return KINDS[k][0]; }).join(" + "), "System design"];
   function build() {
     declareParams();
     for (var dk in S.p) DEFAULTS[dk] = S.p[dk];

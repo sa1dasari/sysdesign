@@ -19,28 +19,33 @@ Two ways this fails:
 
 ## Workflow
 
-1. **Classify the topic.** Infer it, and honour an explicit `--hld`, `--lld` or `--concept`.
-   - **HLD** (`kind: "hld"`): many machines and scale questions. Feed, Uber, chat, cache cluster, video upload, payments, a rate limiter *service*.
-   - **LLD** (`kind: "lld"`): object design in one process. Parking lot, LRU cache class, elevator, vending machine, chess.
-   - **Concept** (`kind: "concept"`): how one mechanism works. An algorithm, data structure or protocol: consistent hashing, Bloom filter, Raft, two-phase commit, LSM tree, token bucket, CAP, vector clocks, OAuth, TLS. Also "how does X work" for a real product's core trick (Kafka's log, DNS resolution).
-   - Some topics are two of these (a rate limiter is a token-bucket algorithm and a distributed service). Default to the level the user's wording points to, and say what you chose in one line.
-2. **Find the force.** Name the one constraint that shapes the design: write amplification (feed), hot keys (cache), a policy that must change independently (parking lot), the keys that move when N changes (consistent hashing). The page's `idea` is one sentence about it. If you cannot state it, you do not understand the topic yet. Research if needed, using current sources for anything about real products. For a topic not in the tables in `references/`, use the method in "Any topic" below.
+1. **Decide which views the topic needs.** Any topic can be explained. Do not pick one label and squeeze the topic into it. Ask three questions and answer each from the topic itself:
+   - **Does it run on many machines or face load?** Requests per second, storage, replicas, a service in front of a database. Then it needs the **system view** (HLD): `requirements`, `estimation`, `api`, `data`, `arch`.
+   - **Is there code with state and behaviour worth designing?** A class whose state changes, policies that must be swappable, a lifecycle. Then it needs the **object view** (LLD): `classes`, `sequence`, `states`, `scenario`, `code`, `patterns`.
+   - **Is there a mechanism whose behaviour is the point?** An algorithm, data structure or protocol, where the insight is a curve or an order of messages. Then it needs the **mechanism view** (concept): `chart`, `sequence`, `states`, `scenario`, `code`.
+
+   Include every view that gets a yes, on one page. Most interview topics get two: a rate limiter is a service under load and a token-bucket algorithm; a URL shortener is a read-heavy service and an ID-generation scheme; an LRU cache is a class and, at scale, a cache cluster. Set `kind` to the views the page covers, main one first: `"hld"`, or `["hld", "lld"]`. It sets the page's label. Each view should still earn its place: drop one if it would only repeat the other.
+
+   An explicit `--hld`, `--lld` or `--concept` means that view leads and gets the most depth. Others can still appear if the topic needs them. In the reply, say in one line which views the page covers and why.
+2. **Find the force.** Name the one constraint that shapes the design: write amplification (feed), hot keys (cache), a policy that must change independently (parking lot), the keys that move when N changes (consistent hashing). The page's `idea` is one sentence about it. If you cannot state it, you do not understand the topic yet. Research if needed, using current sources for anything about real products. The tables in `references/` are worked examples for common topics, not a list of what is supported. For anything else, use the method in "Any topic" below.
 3. **Write the model.** HLD: the inputs, the derived rows, and the node graph with capacities. LLD and concept: the reference implementation that you will run. Read `references/model.md`.
-4. **Write the spec** (`spec.mjs`) following the section order in `references/hld.md`, `references/lld.md` or `references/concept.md`.
+4. **Write the spec** (`spec.mjs`). For one view, follow the section order in `references/hld.md`, `references/lld.md` or `references/concept.md`. For several, use the combined order below.
 5. **Build:** `node scripts/build.mjs path/to/spec.mjs`. It validates first and refuses to build a page that is silently wrong.
 6. **Check like a reviewer:** `node scripts/check.mjs path/to/index.html --shots /tmp/shots`. It prints what each preset does to the numbers. Read the screenshots. Fix and repeat. Read `references/verify.md`.
 7. **Deliver** the page. Give a one-line summary and the one decision on the page the reader should poke first.
+
+**Combined order** for a page with several views: the problem or requirements, then the system (`estimation`, `api`, `data`, `arch`), then the mechanism (`chart`, `scenario`), then the objects (`classes`, `sequence`, `states`, `code`), then `tradeoffs`, `failures` and `qa` covering all of it. Keep one `idea` for the whole page. The views should explain the same force from different distances, not be two pages stapled together. See `examples/rate-limiter/`.
 
 Size the work before starting: a Figure is one topic with one simulator or one class model (build without asking). If the user names something huge ("design YouTube"), pick the one subsystem that carries the idea (upload and transcode, or the read path), say so, and offer the rest as follow-up pages.
 
 ## Any topic
 
-The tables in `references/` cover common topics. For anything else, work it out in this order. Do not refuse a topic or force it into the wrong kind.
+The tables in `references/` are worked examples. For any other topic, work it out in this order. Do not refuse a topic or force it into the wrong view.
 
 1. **Ask what goes wrong with the obvious design.** Every topic exists because the first idea fails. `hash mod N` reshuffles everything; a single database runs out of writes; one lock serialises everything; a counter on one node disagrees with another. That failure is the force.
 2. **Name what the force is measured in.** Requests per second, bytes, keys moved, messages per decision, false positive rate, round trips, time to converge. That quantity goes on a slider, a derived row or a chart's y axis.
 3. **Pick the moment the reader sees it fail.** HLD: a simulator preset. LLD: a scenario step from real code. Concept: a chart where the naive line and the real one diverge, or a scenario step where the protocol saves the day (a leader dies, a replica lags).
-4. **Pick the sections from what the topic has, not from a template.** A protocol has messages (`sequence`) and states (`states`). A data structure has operations to run (`scenario`, `code`) and a curve (`chart`). A system has load (`estimation`, `arch`). Any kind may use any section.
+4. **Pick the sections from what the topic has, not from a template.** A protocol has messages (`sequence`) and states (`states`). A data structure has operations to run (`scenario`, `code`) and a curve (`chart`). A system has load (`estimation`, `arch`). Any page may use any section.
 5. **If the topic has no numbers at all** (an auth flow, a consistency model), the interactive part is the state machine, the stepped sequence, and a scenario where the reader sees the wrong order of events. Still run real code to produce it.
 6. **If the topic is a real product** (Kafka, DynamoDB, Spanner), explain the design idea that makes it work, cite where the claims come from in a `text` section, and model that idea. Do not invent product internals or numbers.
 

@@ -26,8 +26,23 @@ Rebuild, check and open one with `node scripts/make.mjs examples/news-feed/spec.
 
 ## Install
 
+As a Claude Code plugin (recommended, gets updates):
+
+```text
+/plugin install sysdesign --marketplace sa1dasari/sysdesign
+```
+
+On older Claude Code versions, add the marketplace first, then install:
+
+```text
+/plugin marketplace add sa1dasari/sysdesign
+/plugin install sysdesign@sysdesign-marketplace
+```
+
+Or as a personal skill, by cloning:
+
 ```sh
-git clone <this repo> ~/.claude/skills/sysdesign
+git clone https://github.com/sa1dasari/sysdesign ~/.claude/skills/sysdesign
 ```
 
 Then in Claude Code:

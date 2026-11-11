@@ -1,0 +1,9 @@
+{
+  "name": "sysdesign",
+  "version": "1.0.0",
+  "description": "Explain any system design topic as an interactive page: architecture walkthroughs, changes to try, live charts, and object and protocol diagrams from real code.",
+  "author": { "name": "sa1dasari" },
+  "license": "MIT",
+  "repository": "https://github.com/sa1dasari/sysdesign",
+  "keywords": ["system-design", "architecture", "interview-prep", "learning", "visualization"]
+}

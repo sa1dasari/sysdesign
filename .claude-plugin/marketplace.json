@@ -1,0 +1,11 @@
+{
+  "name": "sysdesign-marketplace",
+  "owner": { "name": "sa1dasari" },
+  "plugins": [
+    {
+      "name": "sysdesign",
+      "source": "./",
+      "description": "Explain any system design topic as an interactive page you can poke."
+    }
+  ]
+}

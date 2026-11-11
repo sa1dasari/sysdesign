@@ -57,7 +57,7 @@ try {
   else if (err) { say("FAIL page reported errors: " + err); failed = true; }
   else say("ok   page built, no script errors");
 
-  const sections = await ev(`[...document.querySelectorAll('main section')].map(s=>s.id+'|'+s.querySelector('h2').textContent)`);
+  const sections = await ev(`[...document.querySelectorAll('main section')].map(s=>s.id+'|'+s.querySelector('h2').lastChild.textContent)`);
   say(`ok   ${sections.length} sections: ` + sections.map((s) => s.split("|")[1]).join(", "));
 
   // overflow check: nothing should push the page wider than the viewport
@@ -79,6 +79,15 @@ try {
   // click every node once to exercise the detail panel
   const clickable = await ev(`document.querySelectorAll('.sim .node, .cls, .stn').length`);
   say(`\nok   ${clickable} interactive nodes present`);
+
+  // charts: every line must be drawn from finite numbers; print each chart's live readout
+  const charts = await ev(`[...document.querySelectorAll('.viz')].map(c=>({t:c.closest('section').querySelector('h2').lastChild.textContent,
+    lines:c.querySelectorAll('path.cs').length, bad:[...c.querySelectorAll('path.cs')].filter(p=>/NaN|Infinity|^M0,0$/.test(p.getAttribute('d'))).length,
+    marker:(c.querySelector('.cmt')||{}).textContent||'', legend:[...c.querySelectorAll('.legend span')].map(s=>[...s.childNodes].map(n=>n.textContent).filter(Boolean).join(' ')).join(' | ')}))`);
+  for (const c of charts ?? []) {
+    if (c.bad) { say(`FAIL chart "${c.t}": ${c.bad} of ${c.lines} lines have no drawable points`); failed = true; }
+    else say(`ok   chart "${c.t}": ${c.lines} line(s)${c.marker ? ", marker " + c.marker : ""}${c.legend ? ". " + c.legend : ""}`);
+  }
 
   if (shots) {
     mkdirSync(shots, { recursive: true });

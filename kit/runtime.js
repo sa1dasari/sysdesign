@@ -10,7 +10,7 @@
 
   // ---------- helpers ----------
   function h(tag, attrs) {
-    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan)$/.test(tag);
+    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan|clipPath)$/.test(tag);
     var el = svg ? document.createElementNS(SVG, tag) : document.createElement(tag);
     if (attrs) for (var k in attrs) {
       var v = attrs[k];
@@ -54,15 +54,17 @@
     return sum + integral + (Math.pow(k, -s) - Math.pow(m, -s)) / 2 + s * (Math.pow(m, -s - 1) - Math.pow(k, -s - 1)) / 12;
   }
   var cache = {};
-  function val(x, extra) {
-    if (typeof x !== "string" || x.charAt(0) !== "=") return x;
-    var f = cache[x];
+  // Evaluate "=expr". Expressions read p (params), r (rows), m (simulation result) and,
+  // inside a chart, x (the value on the horizontal axis).
+  function val(expr, extra, xv) {
+    if (typeof expr !== "string" || expr.charAt(0) !== "=") return expr;
+    var f = cache[expr];
     if (!f) {
-      try { f = cache[x] = new Function("p", "r", "m", "H", "with(H){return (" + x.slice(1) + ")}"); }
-      catch (e) { fail("bad expression " + x + ": " + e.message); f = function () { return 0; }; }
+      try { f = cache[expr] = new Function("p", "r", "m", "H", "x", "with(H){return (" + expr.slice(1) + ")}"); }
+      catch (e) { fail("bad expression " + expr + ": " + e.message); f = cache[expr] = function () { return 0; }; }
     }
-    try { var v = f(S.p, S.r, extra || S.m, H); return v == null || isNaN(v) && typeof v === "number" ? 0 : v; }
-    catch (e) { fail("expression " + x + ": " + e.message); return 0; }
+    try { var v = f(S.p, S.r, extra || S.m, H, xv); return v == null || isNaN(v) && typeof v === "number" ? 0 : v; }
+    catch (e) { fail("expression " + expr + ": " + e.message); return 0; }
   }
   function fail(msg) { document.body.dataset.error = (document.body.dataset.error || "") + msg + " | "; }
   function fmt(v, f, unit) {
@@ -98,15 +100,19 @@
   var DEFAULTS = {};
   function onChange(fn) { listeners.push(fn); }
   function readsSim(row) { return typeof row.expr === "string" && /\bm\./.test(row.expr); }
-  function recompute() {
-    // rows that do not read the simulation first, so the simulation can use them
+  // Rows that do not read the simulation are computed first, so the simulation can use them.
+  // Rows that read it are computed after, against that run's result (never a stale one).
+  function computeRows(simPass, m) {
     (SPEC.sections || []).forEach(function (s) {
-      (s.rows || []).forEach(function (row) { if (row.id && !readsSim(row)) S.r[row.id] = val(row.expr); });
+      (s.rows || []).forEach(function (row) { if (row.id && readsSim(row) === simPass) S.r[row.id] = val(row.expr, m); });
     });
-    var arch = (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0];
+  }
+  function archSection() { return (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0]; }
+  function recompute() {
+    computeRows(false, null);
+    var arch = archSection();
     S.m = arch ? simulate(arch) : null;
-    // then rows that read this simulation result (never a stale one)
-    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id && readsSim(row)) S.r[row.id] = val(row.expr, S.m); }); });
+    computeRows(true, S.m);
     listeners.forEach(function (f) { f(); });
     if (S.m) document.body.dataset.sim = JSON.stringify({ rps: S.m.rps, err: S.m.err, lat: S.m.lat, bottleneck: S.m.bottleneck });
   }
@@ -200,16 +206,23 @@
     return [h("div", { class: "grid g3" }, col("Functional", s.functional), col("Non-functional", s.nonfunctional), s.outOfScope ? col("Out of scope", s.outOfScope) : null)];
   };
 
-  builders.estimation = function (s) {
-    var outs = [], inputs = h("div", { class: "card" }, h("h3", null, "Assumptions (drag)"));
-    (s.inputs || []).forEach(function (c) {
-      var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || "any", value: c.value, "aria-label": c.label });
-      var lg = c.log;
-      if (lg) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; inp.value = Math.log10(c.value); }
-      inp.addEventListener("input", function () { setParam(c.id, lg ? Math.pow(10, +inp.value) : +inp.value); });
-      onChange(function () { o.textContent = fmt(S.p[c.id], c.fmt, c.unit); });
-      inputs.appendChild(h("div", { class: "inp" }, h("label", null, c.label), o, inp));
+  // One labelled slider bound to param c.id. It follows the param when a preset changes it.
+  function slider(c, defStep) {
+    var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || defStep, "aria-label": c.label });
+    if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
+    inp.value = c.log ? Math.log10(c.value) : c.value;
+    inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); });
+    onChange(function () {
+      var v = S.p[c.id];
+      if (document.activeElement !== inp) inp.value = c.log ? Math.log10(v) : v;
+      o.textContent = fmt(v, c.fmt, c.unit);
     });
+    return h("div", { class: "inp" }, h("label", null, c.label), o, inp);
+  }
+
+  builders.estimation = function (s) {
+    var inputs = h("div", { class: "card" }, h("h3", null, "Assumptions (drag)"));
+    (s.inputs || []).forEach(function (c) { inputs.appendChild(slider(c, "any")); });
     var tb = h("table", { class: "rows" });
     (s.rows || []).forEach(function (row) {
       var td = h("td");
@@ -339,19 +352,11 @@
     });
     presetHooks.push(function () { presetBtns.forEach(function (x) { var on = true, want = {}; for (var d in DEFAULTS) want[d] = DEFAULTS[d]; for (var k in x.pr.set) want[k] = x.pr.set[k]; for (var w in want) if (S.p[w] !== want[w]) on = false; x.b.classList.toggle("on", on); }); });
     var ctrls = h("div", { class: "ctrls" });
-    var ctrlSync = [];
-    (s.controls || []).forEach(function (c) {
-      var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || 1, value: c.value, "aria-label": c.label });
-      if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
-      inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); });
-      ctrlSync.push(function () { var v = S.p[c.id]; inp.value = c.log ? Math.log10(v) : v; o.textContent = fmt(v, c.fmt, c.unit); });
-      ctrls.appendChild(h("div", { class: "inp" }, h("label", null, c.label), o, inp));
-    });
+    (s.controls || []).forEach(function (c) { ctrls.appendChild(slider(c, 1)); });
 
     var dots = [], t0 = performance.now(), reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     function paint() {
       var m = S.m; if (!m) return;
-      ctrlSync.forEach(function (f) { f(); });
       nodes.forEach(function (n) {
         var r = m.nodes[n.id], el = nodeEls[n.id];
         el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util * 0.35, 0, 0.9));
@@ -388,6 +393,173 @@
     if (!reduce) requestAnimationFrame(frame);
     var stage = h("div", { class: "stage" }, svg);
     return [paras(s.body || []), h("div", { class: "card sim" }, presetBar.childNodes.length ? presetBar : null, stage, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
+  };
+
+  // ----- chart: a quantity as a curve -----
+  // `x` is a sweep (from..to, optionally log) or a list of values. Each series is an
+  // expression of x (and of params and rows), or a `y` array recorded at build time by
+  // running real code. With `x.param`, every point is computed with that param set to x,
+  // so the curves follow every other slider, and a marker shows the page's current value.
+  var MAX_SERIES = 4;
+  function niceTicks(lo, hi, log) {
+    var t = [], i, v;
+    if (log) {
+      var a = Math.floor(Math.log10(lo)), b = Math.ceil(Math.log10(hi));
+      for (i = a; i <= b; i++) [1, 2, 5].forEach(function (k) {
+        v = k * Math.pow(10, i);
+        if (v >= lo * 0.999 && v <= hi * 1.001 && (k === 1 || b - a <= 2)) t.push(v);
+      });
+      return t;
+    }
+    var raw = (hi - lo || Math.abs(hi) || 1) / 5, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+    var step = (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+    for (v = Math.ceil(lo / step - 1e-9) * step; v <= hi + step * 1e-9; v += step) t.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return t;
+  }
+  function tickFmt(v, f) {
+    if (f === "pct") return +(v * 100).toPrecision(3) + "%";
+    if (f === "bytes") return scale(v, ["B", "KB", "MB", "GB", "TB", "PB", "EB"], 1000);
+    var s = v !== 0 && Math.abs(v) < 1 ? String(+v.toPrecision(2)) : si(v);
+    return f === "ms" ? s + " ms" : s;
+  }
+  var chartN = 0;
+  builders.chart = function (s) {
+    var W = 720, Hh = 330, ML = 60, MR = 18, MT = 34, MB = 50, PW = W - ML - MR, PH = Hh - MT - MB;
+    var X = s.x || {}, Y = s.y || {}, ser = (s.series || []).slice(0, MAX_SERIES), arch = archSection();
+    var needSim = !!arch && ser.some(readsSim), clipId = "clip" + chartN++;
+    var data = null, sx = null, sy = null, ylo = 0, yhi = 1, plot = null, clipRect = null;
+    function points() {
+      if (X.values) return X.values.slice();
+      var n = X.steps || 60, out = [];
+      for (var i = 0; i <= n; i++) { var t = i / n; out.push(X.log ? X.from * Math.pow(X.to / X.from, t) : X.from + (X.to - X.from) * t); }
+      return out;
+    }
+    function sweep() {
+      var xs = points(), ys = ser.map(function () { return []; }), keepP = X.param ? S.p[X.param] : null, keepR = {}, k;
+      for (k in S.r) keepR[k] = S.r[k];
+      xs.forEach(function (xv, i) {
+        var m = S.m;
+        if (X.param) { S.p[X.param] = xv; computeRows(false, null); if (needSim) { m = simulate(arch); computeRows(true, m); } }
+        ser.forEach(function (e, j) { ys[j].push(e.y ? +e.y[i] : +val(e.expr, m, xv)); });
+      });
+      if (X.param) { S.p[X.param] = keepP; for (k in keepR) S.r[k] = keepR[k]; }
+      return { xs: xs, ys: ys };
+    }
+    function shown(v) { return isFinite(v) && (!Y.log || v > 0); }
+    function now(e) { return X.param && !e.y ? +val(e.expr, S.m, S.p[X.param]) : NaN; }
+
+    var svg = h("svg", { viewBox: "0 0 " + W + " " + Hh, role: "img", "aria-label": s.title || "chart" });
+    clipRect = h("rect", { x: ML, y: MT - 3, width: PW, height: PH + 6 });
+    svg.appendChild(h("defs", null, h("clipPath", { id: clipId }, clipRect)));
+    var gGrid = h("g"), gLines = h("g", { "clip-path": "url(#" + clipId + ")" }), gTop = h("g");
+    var cross = h("line", { class: "cx", y1: MT, y2: MT + PH }), hdots = h("g");
+    [gGrid, gLines, gTop, cross, hdots].forEach(function (g) { svg.appendChild(g); });
+    var tip = h("div", { class: "tip" }), legend = h("div", { class: "legend" }), table = h("table", { class: "tbl" });
+
+    function draw() {
+      // draw at the container's real width so text stays a readable size on phones
+      var cw = plot && plot.clientWidth ? plot.clientWidth - 12 : 720;
+      W = clamp(Math.round(cw), 300, 760); PW = W - ML - MR;
+      svg.setAttribute("viewBox", "0 0 " + W + " " + Hh); clipRect.setAttribute("width", PW);
+      data = sweep();
+      var xs = data.xs, xlo = Math.min.apply(null, xs), xhi = Math.max.apply(null, xs), all = [];
+      data.ys.forEach(function (a) { a.forEach(function (v) { if (shown(v)) all.push(v); }); });
+      ylo = Y.min != null ? Y.min : all.length ? Math.min.apply(null, all) : Y.log ? 1 : 0;
+      yhi = Y.max != null ? Y.max : all.length ? Math.max.apply(null, all) : ylo + 1;
+      if (Y.log) {
+        ylo = Math.pow(10, Math.floor(Math.log10(ylo))); yhi = Math.pow(10, Math.ceil(Math.log10(yhi)));
+        if (yhi <= ylo) yhi = ylo * 10;
+      } else {
+        if (Y.min == null) ylo = Math.min(0, ylo);
+        if (yhi <= ylo) yhi = ylo + 1;
+        var t0 = niceTicks(ylo, yhi), st = t0.length > 1 ? t0[1] - t0[0] : 1;
+        if (Y.max == null) yhi = Math.ceil(yhi / st - 1e-9) * st;
+      }
+      sx = function (v) { return ML + (X.log ? Math.log(v / xlo) / Math.log(xhi / xlo) : (v - xlo) / ((xhi - xlo) || 1)) * PW; };
+      sy = function (v) { return MT + PH - (Y.log ? Math.log(v / ylo) / Math.log(yhi / ylo) : (v - ylo) / (yhi - ylo)) * PH; };
+      gGrid.innerHTML = ""; gLines.innerHTML = ""; gTop.innerHTML = "";
+      niceTicks(ylo, yhi, Y.log).forEach(function (v) {
+        var y = sy(v);
+        gGrid.appendChild(h("line", { class: "cg", x1: ML, x2: ML + PW, y1: y, y2: y }));
+        gGrid.appendChild(h("text", { x: ML - 8, y: y + 4, "text-anchor": "end" }, tickFmt(v, Y.fmt)));
+      });
+      niceTicks(xlo, xhi, X.log).forEach(function (v) {
+        var x = sx(v);
+        gGrid.appendChild(h("line", { class: "ca", x1: x, x2: x, y1: MT + PH, y2: MT + PH + 5 }));
+        gGrid.appendChild(h("text", { x: x, y: MT + PH + 19, "text-anchor": "middle" }, tickFmt(v, X.fmt)));
+      });
+      gGrid.appendChild(h("line", { class: "ca", x1: ML, x2: ML + PW, y1: MT + PH, y2: MT + PH }));
+      if (X.label) gGrid.appendChild(h("text", { class: "an", x: ML + PW / 2, y: Hh - 8, "text-anchor": "middle" }, X.label));
+      if (Y.label) gGrid.appendChild(h("text", { class: "an", x: 4, y: 14 }, Y.label));
+      var ends = [];
+      data.ys.forEach(function (ys, j) {
+        var d = "", pen = false;
+        ys.forEach(function (v, i) {
+          if (!shown(v)) { pen = false; return; }
+          d += (pen ? "L" : "M") + sx(xs[i]).toFixed(1) + "," + sy(v).toFixed(1); pen = true;
+        });
+        gLines.appendChild(h("path", { class: "cs s" + j, d: d || "M0,0" }));
+        for (var i = ys.length - 1; i >= 0; i--) if (shown(ys[i])) { ends.push({ j: j, y: clamp(sy(ys[i]), MT, MT + PH) }); break; }
+      });
+      if (ser.length > 1) { // direct labels at the line ends, nudged apart
+        // above the line end, or below it when the line hugs the top edge
+        ends.forEach(function (e) { e.ly = e.y - 7 >= MT + 12 ? e.y - 7 : e.y + 17; });
+        ends.sort(function (a, b) { return a.ly - b.ly; });
+        var last = -1e9;
+        ends.forEach(function (e) { e.ly = Math.max(e.ly, last + 15); last = e.ly; });
+        ends.forEach(function (e) { gTop.appendChild(h("text", { class: "cl", x: ML + PW - 2, y: e.ly, "text-anchor": "end" }, ser[e.j].label)); });
+      }
+      if (X.param) { // where the page's current value sits
+        var cx = S.p[X.param];
+        if (cx >= xlo && cx <= xhi) {
+          var px = sx(cx);
+          gTop.appendChild(h("line", { class: "cm", x1: px, x2: px, y1: MT, y2: MT + PH }));
+          gTop.appendChild(h("text", { class: "cmt", x: clamp(px, ML + 30, ML + PW - 30), y: MT - 8, "text-anchor": "middle" }, "now " + tickFmt(cx, X.fmt)));
+          ser.forEach(function (e, j) { var v = now(e); if (shown(v) && v >= ylo && v <= yhi) gTop.appendChild(h("circle", { class: "cd s" + j, cx: px, cy: sy(v), r: 4.5 })); });
+        }
+      }
+      legend.innerHTML = "";
+      if (ser.length > 1 || X.param) ser.forEach(function (e, j) {
+        var v = now(e);
+        legend.appendChild(h("span", null, h("i", { class: "s" + j }), e.label, isFinite(v) ? h("b", null, fmt(v, Y.fmt, Y.unit)) : null));
+      });
+      legend.style.display = legend.childNodes.length ? "" : "none";
+      table.innerHTML = "";
+      table.appendChild(h("tr", null, h("th", null, X.label || "x"), ser.map(function (e) { return h("th", null, e.label); })));
+      var every = Math.max(1, Math.ceil(xs.length / 25));
+      xs.forEach(function (xv, i) {
+        if (i % every && i !== xs.length - 1) return;
+        table.appendChild(h("tr", null, h("td", null, fmt(xv, X.fmt, X.unit)), data.ys.map(function (a) { return h("td", null, fmt(a[i], Y.fmt, Y.unit)); })));
+      });
+    }
+    function hover(ev) {
+      var r = svg.getBoundingClientRect(), vx = (ev.clientX - r.left) * W / r.width, xs = data.xs, best = 0;
+      if (vx < ML - 10 || vx > ML + PW + 10) return unhover();
+      xs.forEach(function (v, i) { if (Math.abs(sx(v) - vx) < Math.abs(sx(xs[best]) - vx)) best = i; });
+      var px = sx(xs[best]);
+      cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.style.opacity = 1;
+      hdots.innerHTML = ""; tip.innerHTML = "";
+      tip.appendChild(h("div", { class: "th" }, (X.label ? X.label + ": " : "") + fmt(xs[best], X.fmt, X.unit)));
+      data.ys.forEach(function (a, j) {
+        var v = a[best];
+        if (shown(v) && v >= ylo && v <= yhi) hdots.appendChild(h("circle", { class: "cd s" + j, cx: px, cy: sy(v), r: 4.5 }));
+        tip.appendChild(h("div", null, h("i", { class: "s" + j }), ser[j].label, h("b", null, shown(v) ? fmt(v, Y.fmt, Y.unit) : "n/a")));
+      });
+      tip.style.display = "block";
+      var left = px * r.width / W, right = left > r.width / 2;
+      tip.style.left = right ? "" : left + 14 + "px"; tip.style.right = right ? r.width - left + 14 + "px" : "";
+      tip.style.top = MT * r.width / W + "px";
+    }
+    function unhover() { cross.style.opacity = 0; hdots.innerHTML = ""; tip.style.display = "none"; }
+    svg.addEventListener("pointermove", hover); svg.addEventListener("pointerleave", unhover);
+    onChange(draw);
+    var lastW = 0;
+    window.addEventListener("resize", function () { if (plot.clientWidth !== lastW) { lastW = plot.clientWidth; draw(); } });
+    var ins = (s.inputs || []).length ? h("div", { class: "ctrls top" }, s.inputs.map(function (c) { return slider(c, "any"); })) : null;
+    plot = h("div", { class: "plot" }, svg, tip);
+    return [paras(s.body || []), h("div", { class: "card viz", style: "padding:0" }, ins, plot, legend,
+      s.note ? h("div", { class: "simnote", html: md(s.note) }) : null,
+      h("details", { class: "tview" }, h("summary", null, "Show as table"), table))];
   };
 
   // ----- LLD: class diagram -----
@@ -598,13 +770,16 @@
   };
 
   // ---------- page assembly ----------
+  // hld: many machines and scale. lld: object design in one process. concept: how an
+  // algorithm, data structure or protocol works (consistent hashing, Raft, Bloom filter).
+  var KIND = { hld: ["HLD", "High-level design"], lld: ["LLD", "Low-level design"], concept: ["Concept", "How it works"] }[SPEC.kind] || ["HLD", "High-level design"];
   function build() {
     declareParams();
     for (var dk in S.p) DEFAULTS[dk] = S.p[dk];
     var root = document.getElementById("root"), secs = SPEC.sections || [];
-    var toc = h("nav", { class: "toc" }, h("div", { class: "brand" }, SPEC.kind === "lld" ? "Low-level design" : "High-level design"));
+    var toc = h("nav", { class: "toc" }, h("div", { class: "brand" }, KIND[1]));
     var main = h("main");
-    var hero = h("header", { class: "hero" }, h("span", { class: "kind" }, SPEC.kind === "lld" ? "LLD" : "HLD"), h("h1", null, SPEC.title), SPEC.subtitle ? h("p", { class: "sub" }, SPEC.subtitle) : null,
+    var hero = h("header", { class: "hero" }, h("span", { class: "kind" }, KIND[0]), h("h1", null, SPEC.title), SPEC.subtitle ? h("p", { class: "sub" }, SPEC.subtitle) : null,
       SPEC.idea ? h("div", { class: "idea" }, h("small", null, "The one idea"), SPEC.idea) : null);
     main.appendChild(hero);
     secs.forEach(function (s, i) {
@@ -618,7 +793,7 @@
     var theme = h("button", { onclick: function () { var d = document.documentElement; var t = d.dataset.theme === "dark" ? "light" : "dark"; d.dataset.theme = t; theme.textContent = t === "dark" ? "Light" : "Dark"; } }, "Dark");
     toc.appendChild(theme);
     root.appendChild(h("div", { class: "wrap" }, toc, main));
-    document.title = SPEC.title + " | " + (SPEC.kind === "lld" ? "LLD" : "HLD");
+    document.title = SPEC.title + " | " + KIND[0];
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) { document.documentElement.dataset.theme = "dark"; theme.textContent = "Light"; }
     recompute();
     presetHooks.forEach(function (f) { f(); });

@@ -6,6 +6,9 @@ Ask for a topic and get one self-contained HTML file:
 
 - **HLD** topics (news feed, cache, ride matching) get capacity math that recomputes as you drag assumptions, and a request-flow simulator. Click a box to see why it exists, then break the system: cold cache, a celebrity post, a lost worker, a traffic spike.
 - **LLD** topics (parking lot, LRU cache, elevator) get a class diagram, a sequence diagram you can step through, a state machine that enforces its own transition table, and a scenario produced by running the real code shown beside it.
+- **Concept** topics (consistent hashing, Bloom filters, Raft, quorums, token buckets) get live charts that put the naive approach next to the real one, measured by running a reference implementation, plus the protocol's states and messages.
+
+Any topic works. Topics outside the built-in tables are worked out from the obvious design and the moment it fails (see "Any topic" in `SKILL.md`).
 
 Every number on a page comes from one small model the page runs, so prose, tables and simulation cannot drift apart.
 
@@ -15,6 +18,7 @@ Open these in a browser:
 
 - `examples/news-feed/index.html` (HLD)
 - `examples/parking-lot/index.html` (LLD)
+- `examples/consistent-hashing/index.html` (concept)
 
 Rebuild them with `node scripts/build.mjs examples/news-feed/spec.mjs`.
 
@@ -29,6 +33,7 @@ Then in Claude Code:
 ```text
 /sysdesign how does a social media news feed work
 /sysdesign --lld parking lot
+/sysdesign --concept bloom filter
 ```
 
 Needs Node 20.10+. Chrome or Chromium is used by `scripts/check.mjs` (found on PATH, or set `CHROME=/path/to/chrome`). No packages to install.

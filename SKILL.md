@@ -1,6 +1,6 @@
 ---
 name: sysdesign
-description: Explain a system design topic as a live, interactive page. Use when someone asks to understand, learn, or prepare for the design of a system (news feed, cache, rate limiter, real-time ride matching, URL shortener, chat, notification service) at high level (HLD, architecture, scale) or low level (LLD, classes, patterns, state machines), including interview prep. Builds one self-contained HTML page with capacity math that recomputes, a request-flow simulator you can stress and break, and for LLD a class diagram, sequence diagram, state machine and a scenario run from real code.
+description: Explain any system design or distributed-systems topic as a live, interactive page. Use when someone asks to understand, learn, or prepare for the design of a system (news feed, cache, chat, URL shortener, ride matching, payments, video streaming), an object model (parking lot, elevator, LRU cache, vending machine), or how a mechanism works (consistent hashing, Raft, Bloom filters, LSM trees, rate limiting algorithms, CAP, OAuth), including interview prep. Builds one self-contained HTML page with math that recomputes as you drag, live charts, a request-flow simulator you can stress and break, and for object models and algorithms a class diagram, sequence diagram, state machine and a scenario run from real code.
 license: MIT
 compatibility: Needs Node.js 20.10+. Chrome or Chromium is used for the checks.
 ---
@@ -19,15 +19,32 @@ Two ways this fails:
 
 ## Workflow
 
-1. **Classify the topic: HLD or LLD.** Infer it. Systems with many machines and scale questions (feed, Uber, chat, cache cluster, rate limiter service) are HLD. Single-process object design (parking lot, LRU cache class, elevator, vending machine, library) is LLD. Honour an explicit `--hld` or `--lld`. Some topics are both (a rate limiter is a token-bucket class and a distributed service): default to the level the user's wording points to, and say what you chose in one line.
-2. **Find the force.** Name the one constraint that shapes the design: write amplification (feed), hot keys (cache), geo-lookup rate (Uber), a policy that must change independently (parking lot). The page's `idea` is one sentence about it. If you cannot state it, you do not understand the topic yet. Research if needed, using current sources for anything about real products.
-3. **Write the model.** HLD: the inputs, the derived rows, and the node graph with capacities. LLD: the reference implementation that you will run. Read `references/model.md`.
-4. **Write the spec** (`spec.mjs`) following the section order in `references/hld.md` or `references/lld.md`.
+1. **Classify the topic.** Infer it, and honour an explicit `--hld`, `--lld` or `--concept`.
+   - **HLD** (`kind: "hld"`): many machines and scale questions. Feed, Uber, chat, cache cluster, video upload, payments, a rate limiter *service*.
+   - **LLD** (`kind: "lld"`): object design in one process. Parking lot, LRU cache class, elevator, vending machine, chess.
+   - **Concept** (`kind: "concept"`): how one mechanism works. An algorithm, data structure or protocol: consistent hashing, Bloom filter, Raft, two-phase commit, LSM tree, token bucket, CAP, vector clocks, OAuth, TLS. Also "how does X work" for a real product's core trick (Kafka's log, DNS resolution).
+   - Some topics are two of these (a rate limiter is a token-bucket algorithm and a distributed service). Default to the level the user's wording points to, and say what you chose in one line.
+2. **Find the force.** Name the one constraint that shapes the design: write amplification (feed), hot keys (cache), a policy that must change independently (parking lot), the keys that move when N changes (consistent hashing). The page's `idea` is one sentence about it. If you cannot state it, you do not understand the topic yet. Research if needed, using current sources for anything about real products. For a topic not in the tables in `references/`, use the method in "Any topic" below.
+3. **Write the model.** HLD: the inputs, the derived rows, and the node graph with capacities. LLD and concept: the reference implementation that you will run. Read `references/model.md`.
+4. **Write the spec** (`spec.mjs`) following the section order in `references/hld.md`, `references/lld.md` or `references/concept.md`.
 5. **Build:** `node scripts/build.mjs path/to/spec.mjs`. It validates first and refuses to build a page that is silently wrong.
 6. **Check like a reviewer:** `node scripts/check.mjs path/to/index.html --shots /tmp/shots`. It prints what each preset does to the numbers. Read the screenshots. Fix and repeat. Read `references/verify.md`.
 7. **Deliver** the page. Give a one-line summary and the one decision on the page the reader should poke first.
 
 Size the work before starting: a Figure is one topic with one simulator or one class model (build without asking). If the user names something huge ("design YouTube"), pick the one subsystem that carries the idea (upload and transcode, or the read path), say so, and offer the rest as follow-up pages.
+
+## Any topic
+
+The tables in `references/` cover common topics. For anything else, work it out in this order. Do not refuse a topic or force it into the wrong kind.
+
+1. **Ask what goes wrong with the obvious design.** Every topic exists because the first idea fails. `hash mod N` reshuffles everything; a single database runs out of writes; one lock serialises everything; a counter on one node disagrees with another. That failure is the force.
+2. **Name what the force is measured in.** Requests per second, bytes, keys moved, messages per decision, false positive rate, round trips, time to converge. That quantity goes on a slider, a derived row or a chart's y axis.
+3. **Pick the moment the reader sees it fail.** HLD: a simulator preset. LLD: a scenario step from real code. Concept: a chart where the naive line and the real one diverge, or a scenario step where the protocol saves the day (a leader dies, a replica lags).
+4. **Pick the sections from what the topic has, not from a template.** A protocol has messages (`sequence`) and states (`states`). A data structure has operations to run (`scenario`, `code`) and a curve (`chart`). A system has load (`estimation`, `arch`). Any kind may use any section.
+5. **If the topic has no numbers at all** (an auth flow, a consistency model), the interactive part is the state machine, the stepped sequence, and a scenario where the reader sees the wrong order of events. Still run real code to produce it.
+6. **If the topic is a real product** (Kafka, DynamoDB, Spanner), explain the design idea that makes it work, cite where the claims come from in a `text` section, and model that idea. Do not invent product internals or numbers.
+
+Every page, whatever the topic, needs at least one thing the reader can move that changes a number they care about.
 
 ## The kit
 
@@ -39,11 +56,12 @@ Size the work before starting: a Figure is one topic with one simulator or one c
 | `estimation` | Sliders (`inputs`) and live derived `rows`. Expressions are strings starting `=`, reading `p.id` (inputs) and `r.id` (earlier rows). |
 | `api`, `data` | Endpoints and tables, each with a reason. |
 | `arch` | The flow simulator. Nodes with capacity, edges with shares, controls, presets, metrics. |
+| `chart` | A quantity as a curve: an expression of `x`, or data recorded by running real code. With `x.param` it follows a slider and marks the current value. Each point can rerun the simulator (latency against load). |
 | `tradeoffs`, `failures` | Decisions with a chosen option, and failures that can inject themselves into the simulator. |
-| `classes`, `sequence`, `states` | LLD diagrams. The state machine runs its own transition table. |
+| `classes`, `sequence`, `states` | LLD and concept diagrams. The state machine runs its own transition table. |
 | `scenario`, `code` | Steps recorded by running the real implementation, and the same source shown beside it. |
 
-Expression helpers: `min max ceil floor round log2 log10 pow sqrt abs clamp` and `zipf(items, total, s)`, the hit ratio of an ideal cache over Zipf-distributed popularity.
+Expressions read `p` (sliders), `r` (rows), `m` (the simulation result) and, in a chart, `x`. Helpers: `min max ceil floor round log log2 log10 pow sqrt abs clamp` and `zipf(items, total, s)`, the hit ratio of an ideal cache over Zipf-distributed popularity.
 
 ## Craft rules
 

@@ -1,6 +1,6 @@
 # Concept pages
 
-For how one mechanism works: an algorithm, a data structure or a protocol. Use `kind: "concept"`. See `examples/consistent-hashing/`.
+For how one mechanism works: an algorithm, a data structure or a protocol. Use `kind: "concept"`.
 
 Section order. Cut a section only if it truly has nothing to say.
 

@@ -115,7 +115,7 @@ export default {
             { path: ["gw", "redis"], text: "It asks the **counter store** (Redis): does this client have a request left right now? Checking and counting happen in one atomic step, so two gateways cannot both spend the last one." },
             { path: ["gw", "api"], text: "The answer is yes, so the request goes on to the **API servers**..." },
             { path: ["api", "db"], text: "...which do the work and read the **database**." },
-            { path: ["api", "gw", "users"], text: "The answer goes back. The limiter added well under a millisecond." },
+            { path: ["api", "gw", "users"], text: "The answer goes back. The limiter added about 1.5 ms, inside the 2 ms budget." },
           ],
         },
         {
@@ -131,7 +131,7 @@ export default {
           steps: [
             { path: ["gw", "redis"], text: "The gateway cannot check anyone's limit. It has to choose what to do." },
             { path: ["gw", "api"], text: "**Fail open**: let requests through unchecked. The API stays up, but abuse gets through too. Try \"Counter store down, fail open\"." },
-            { path: ["users", "gw"], text: "**Fail closed**: refuse every request. Abuse stops, and so does everyone else. Try \"Counter store down, fail closed\"." },
+            { path: ["gw", "users"], text: "**Fail closed**: refuse every request. Abuse stops, and so does everyone else. Try \"Counter store down, fail closed\"." },
           ],
         },
       ],
@@ -140,7 +140,7 @@ export default {
         { label: "Limiter off", set: { on: 0 }, note: "Abusive traffic reaches the API. Watch the API servers pass 100% and real clients start failing." },
         { label: "Count on each gateway", set: { central: 0 }, note: "No counter store and no errors on the limiter, but each client now gets 12 times its limit. The API fills up and the database tips over, and nothing points at the limiter." },
         { label: "Counter store down, fail closed", set: { redisUp: 0, failOpen: 0 }, note: "Every check fails, so every request is rejected, real clients included. The limiter has become the outage." },
-        { label: "Counter store down, fail open", set: { redisUp: 0, failOpen: 1 }, note: "Requests skip the check and nothing is limited. The API survives only if it has headroom for the abuse." },
+        { label: "Counter store down, fail open", set: { redisUp: 0, failOpen: 1 }, note: "Requests skip the check and nothing is limited. The API survives only if it has headroom for the abuse. Here it does not: the API servers run at 125% and a quarter of real requests fail." },
         { label: "Limit too low", set: { limit: 0.3 }, note: "Abuse is crushed, but watch the throttled metric: real clients averaging 0.5 req/s now get 429s." },
       ],
       controls: [
@@ -155,6 +155,7 @@ export default {
       metrics: [
         { label: "Real clients throttled", expr: "=1-r.legitAllowed/r.legitRps", fmt: "pct" },
         { label: "Abuse let through", expr: "=r.botAllowed/r.botRps", fmt: "pct" },
+        { label: "Counter store", expr: "=p.redisUp ? 'up' : (p.failOpen ? 'down, open' : 'down, closed')", bad: "=!p.redisUp" },
       ],
     },
     {
@@ -253,7 +254,7 @@ export default {
             { name: "Fixed window", pros: ["One counter, trivially cheap"], cons: ["Twice the limit across a window edge (see the chart)"] },
             { name: "Sliding log", pros: ["Exact"], cons: ["A timestamp per request: memory grows with the limit (see the estimate)"] },
           ],
-          why: "The bucket is as exact as the log for the case that matters and as cheap as the window.",
+          why: "The bucket has no window edge and costs as little as the window. It is not exact: in one second it can pass its capacity plus its rate, so capacity sets the largest burst.",
         },
         {
           question: "Where do the counters live?",

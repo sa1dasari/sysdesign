@@ -1,6 +1,7 @@
 ---
 name: sysdesign
-description: Explain any system design or distributed-systems topic as a live, interactive page. Use when someone asks to understand, learn, or prepare for the design of a system (news feed, Netflix recommendations, cache, chat, URL shortener, ride matching, payments, video streaming), an object model (parking lot, elevator, LRU cache, vending machine), or how a mechanism works (consistent hashing, Raft, Bloom filters, LSM trees, rate limiting algorithms, CAP, OAuth), including interview prep. Builds one self-contained HTML page and opens it in the browser - an architecture diagram with step-by-step walkthroughs of how requests and events move, changes the reader can try and watch the effect of, live charts, and for object models and algorithms a class diagram, sequence diagram, state machine and a scenario run from real code.
+description: Build an interactive HTML page that explains a system design topic, then open it in the browser. Use when the user runs /sysdesign, or asks to learn, understand, visualize or prepare for an interview on how a system works (a news feed, Netflix recommendations, a URL shortener, chat, payments), an object model (parking lot, elevator, LRU cache), or a distributed-systems mechanism (consistent hashing, Raft, Bloom filters, rate limiting), and would benefit from a diagram they can step through and change. Not for a quick factual answer in chat.
+argument-hint: "[--hld|--lld|--concept] <topic>"
 license: MIT
 compatibility: Needs Node.js 20.10+. Chrome or Chromium is used for the checks.
 ---
@@ -19,16 +20,16 @@ Turn a system design topic into a page the reader can poke. The reader should fi
 - **Plain words.** Define every term the first time it appears ("EVCache, an in-memory cache"). No unexplained acronyms. Short sentences.
 - **Numbers go late.** Put `estimation` near the end as "Go deeper", unless the topic is about scale itself.
 
-See `examples/netflix-recommendations/` for this style.
+`examples/netflix-recommendations/` shows this style (for people browsing the repo; you do not need to read it).
 
 ## Be quick: aim for under 5 minutes
 
 The tools take seconds. The time goes into research, reading, writing and rework, so budget those:
 
 1. **Research only what you do not know.** For a well-known topic, write from knowledge. For a real product, fetch the source the user gave, or at most two searches. Do not browse further.
-2. **Read little.** This file, `references/spec-format.md` (every field, one page), and the one reference for the main view (`hld.md`, `lld.md` or `concept.md`). Do not read the example specs or the kit source unless something fails.
-3. **Write the spec once, at the right size.** 6 to 8 sections. A learner page does not need `api` or `data` unless they are the point. Write a reference implementation only when the page has an object or mechanism view.
-4. **One command builds, checks and opens it:** `node <skill dir>/scripts/make.mjs <spec>`. Fix only `FAIL` lines and presets whose numbers contradict their note. At most two fix rounds.
+2. **Read little.** This file, `references/spec-format.md` (every field and modelling rule), and the one reference for the main view (`hld.md`, `lld.md` or `concept.md`). Do not read the example specs, `model.md` or the kit source unless something fails.
+3. **Write the spec once, at the right size.** 6 to 8 sections. For the architecture, 6 to 10 boxes, 2 or 3 walkthroughs, 3 or 4 changes to try, 2 or 3 sliders. Size capacities with the recipe in `spec-format.md` so the first build is healthy. A learner page does not need `api` or `data` unless they are the point. Write a reference implementation only when the page has an object or mechanism view.
+4. **One command builds, checks and opens it:** `node "${CLAUDE_SKILL_DIR}/scripts/make.mjs" <spec>`. Fix `FAIL` lines, `WARN` lines, and presets whose numbers contradict their note. At most two fix rounds.
 5. **Screenshots are optional.** Take them (`--shots dir`) only if the check reports a layout problem, and then look at the one section it names.
 
 ## Workflow
@@ -40,11 +41,12 @@ The tools take seconds. The time goes into research, reading, writing and rework
 
    Include every view that gets a yes, on one page. Set `kind` to the views the page covers, main one first: `"hld"`, or `["hld", "lld"]`. Drop a view if it would only repeat another. An explicit `--hld`, `--lld` or `--concept` means that view leads. In the reply, say in one line which views the page covers.
 2. **Find the force.** Name the one constraint that shapes the design: write amplification (feed), how fresh results must be (recommendations), hot keys (cache), a policy that must change independently (parking lot). The page's `idea` is one sentence about it, in plain words. The tables in `references/` are worked examples, not a list of what is supported. For anything else, use "Any topic" below.
-3. **Write the spec** to `./sysdesign/<topic-slug>/spec.mjs` in the user's working directory (and the reference implementation beside it, if any). Follow `references/spec-format.md` for fields and the section order for the main view. For a page with several views, use the combined order below.
-4. **Build, check and open:** `node <skill dir>/scripts/make.mjs ./sysdesign/<topic-slug>/spec.mjs`. It validates the spec, writes `index.html` next to it, checks it in headless Chrome (every preset's numbers, every walkthrough step, charts, layout), and opens it in the default browser. Compare each preset's numbers with its note. Read `references/verify.md` only if something fails.
-5. **Deliver.** Give the path to `index.html`, a one-line summary, and the walkthrough to start with. The page is already open in the browser; if `make.mjs` printed that there is no display, tell the user to open the file.
+3. **Write the spec** to `sysdesign/<topic-slug>/spec.mjs` under the user's working directory (and the reference implementation beside it, if any). If the working directory is a code project that this page is not about, write under `~/sysdesign/<topic-slug>/` instead and say where. Follow `references/spec-format.md` for fields and the section order for the main view. For a page with several views, use the combined order below.
+4. **Build, check and open:** `node "${CLAUDE_SKILL_DIR}/scripts/make.mjs" sysdesign/<topic-slug>/spec.mjs`. `${CLAUDE_SKILL_DIR}` is this skill's folder (the base directory shown when the skill loaded); quote the path, since it may contain spaces. The command validates the spec, writes `index.html` next to it, checks it in headless Chrome (every preset's numbers, every walkthrough step, charts, layout), and opens it in the default browser. Compare each preset's numbers with its note. Read `references/verify.md` only if something fails.
+   - If it prints `skip checks`, there is no Chrome or Chromium. Do not install one. Read the preset numbers yourself from the spec's model, deliver the page, and say the browser checks were skipped.
+5. **Deliver.** Give the path to `index.html`, a one-line summary, and the walkthrough to start with. If `make.mjs` printed `open <path>`, the page is open in the browser. If it printed `could not open a browser`, tell the user to open the file.
 
-**Combined order** for a page with several views: the big picture or requirements, then the system (`arch`, `estimation`, `api`, `data`), then the mechanism (`chart`, `scenario`), then the objects (`classes`, `sequence`, `states`, `code`), then `tradeoffs`, `failures` and `qa` covering all of it. Keep one `idea` for the whole page. See `examples/rate-limiter/`.
+**Combined order** for a page with several views: the big picture or requirements, then the system (`arch`, `estimation`, `api`, `data`), then the mechanism (`chart`, `scenario`), then the objects (`classes`, `sequence`, `states`, `code`), then `tradeoffs`, `failures` and `qa` covering all of it. Keep one `idea` for the whole page.
 
 **Size.** If the user names something huge ("design YouTube"), pick the one subsystem that carries the idea (upload and transcode, or the read path), say so, and offer the rest as follow-up pages.
 

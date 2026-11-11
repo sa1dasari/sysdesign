@@ -4,7 +4,7 @@ A Claude Code skill that explains a system design topic as a live page you can p
 
 Ask about any topic and get one self-contained HTML file. Claude works out which views the topic needs and puts them on one page:
 
-- **System view (HLD)**, when the topic runs on many machines: capacity math that recomputes as you drag assumptions, and a request-flow simulator. Click a box to see why it exists, then break the system: cold cache, a celebrity post, a lost worker, a traffic spike.
+- **System view (HLD)**, when the topic runs on many machines: an architecture diagram in labelled lanes, walkthroughs that light up how a request or an event moves step by step, and changes you can try ("turn off nearline", "a celebrity posts") while the page shows what users would notice. Click a box to see why it exists. Capacity math that recomputes as you drag is there for going deeper.
 - **Object view (LLD)**, when there is code worth designing: a class diagram, a sequence diagram you can step through, a state machine that enforces its own transition table, and a scenario produced by running the real code shown beside it.
 - **Mechanism view (concept)**, when an algorithm or protocol is the point: live charts that put the naive approach next to the real one, measured by running a reference implementation.
 
@@ -20,8 +20,9 @@ Open these in a browser:
 - `examples/parking-lot/index.html` (LLD)
 - `examples/consistent-hashing/index.html` (concept)
 - `examples/rate-limiter/index.html` (HLD + LLD on one page)
+- `examples/netflix-recommendations/index.html` (HLD for a learner: lanes, walkthroughs, changes to try)
 
-Rebuild them with `node scripts/build.mjs examples/news-feed/spec.mjs`.
+Rebuild, check and open one with `node scripts/make.mjs examples/news-feed/spec.mjs`.
 
 ## Install
 
@@ -44,7 +45,7 @@ Needs Node 20.10+. Chrome or Chromium is used by `scripts/check.mjs` (found on P
 
 ## How it works
 
-`SKILL.md` tells Claude how to find the one force that shapes a design, write a model, and fill a spec. `scripts/build.mjs` validates the spec and inlines `kit/runtime.js` and `kit/style.css` into a single page. `scripts/check.mjs` opens the page in headless Chrome, clicks every simulator preset and prints the resulting numbers, and takes screenshots for review.
+`SKILL.md` tells Claude how to find the one force that shapes a design, explain it to a learner, and fill a spec (`references/spec-format.md` lists every field). `scripts/make.mjs` does the rest in one command: `build.mjs` validates the spec and inlines `kit/runtime.js` and `kit/style.css` into a single page, `check.mjs` opens it in headless Chrome, clicks every preset and walkthrough step and prints the resulting numbers, and then the page opens in your default browser. On a machine with no display it prints the file path instead.
 
 The simulator is a steady-state fluid model with M/M/1-shaped latency. It shows which tier saturates first and what users feel. It is not a production performance predictor.
 

@@ -65,16 +65,28 @@ try {
   if (over > 2) { say(`FAIL horizontal overflow of ${over}px at width ${width}`); failed = true; } else say("ok   no horizontal overflow");
 
   // simulator presets
-  const chips = await ev(`[...document.querySelectorAll('.sim .bar .chip')].map(b=>b.textContent)`);
+  const chips = await ev(`[...document.querySelectorAll('.sim .bar:not(.flows) .chip')].map(b=>b.textContent)`);
   if (chips?.length) {
     say("\nsimulator presets (offered load, failed requests, avg latency, busiest tier):");
     for (let i = 0; i < chips.length; i++) {
-      await ev(`document.querySelectorAll('.sim .bar .chip')[${i}].click()`);
+      await ev(`document.querySelectorAll('.sim .bar:not(.flows) .chip')[${i}].click()`);
       await sleep(120);
       const row = await ev(`JSON.stringify([...document.querySelectorAll('.sim .metric')].map(m=>m.querySelector('span').textContent+': '+m.querySelector('b').textContent))`);
       say(`  ${chips[i].padEnd(32)} ${JSON.parse(row).join(" | ")}`);
     }
-    await ev(`document.querySelector('.sim .bar .chip').click()`);
+    await ev(`document.querySelector('.sim .bar:not(.flows) .chip').click()`);
+  }
+  // walkthroughs: play every step of every flow; each step must light up at least one box
+  const flows = await ev(`[...document.querySelectorAll('.sim .bar.flows .chip')].map(b=>b.textContent)`);
+  if (flows?.length) say("");
+  for (let i = 0; i < (flows ?? []).length; i++) {
+    const r = await ev(`(()=>{const b=document.querySelectorAll('.sim .bar.flows .chip')[${i}];b.click();const out=[];
+      for(let k=0;k<50;k++){const lit=document.querySelectorAll('.sim .node.hl').length,txt=document.querySelector('.walk .wtext').textContent;out.push(lit+':'+(txt?1:0));
+        const next=[...document.querySelectorAll('.walk .chip')].find(x=>x.textContent==='Next'||x.textContent==='Done');if(next.textContent==='Done'){next.click();break;}next.click();}
+      return out;})()`);
+    const dark = r.filter((x) => x.startsWith("0:") || x.endsWith(":0")).length;
+    if (dark) { say(`FAIL walkthrough "${flows[i]}": ${dark} of ${r.length} steps light nothing or have no text`); failed = true; }
+    else say(`ok   walkthrough "${flows[i]}": ${r.length} steps`);
   }
   // click every node once to exercise the detail panel
   const clickable = await ev(`document.querySelectorAll('.sim .node, .cls, .stn').length`);

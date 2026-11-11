@@ -1,16 +1,21 @@
 # HLD pages
 
-Section order. Cut a section only if it truly has nothing to say.
+Section order for a learner (the default). For interview prep, move `estimation`, `api` and `data` up after `requirements`. Cut a section only if it truly has nothing to say. See `examples/netflix-recommendations/`.
 
-1. **requirements**: functional (4 or so), non-functional with numbers (latency, availability, freshness), and out of scope. Scope is a design decision. State it.
-2. **estimation**: inputs, then derived rows. Include one row that exposes the naive design's problem.
-3. **api**: 3 to 5 endpoints. For each, one line on the design choice (cursor vs offset, sync vs async).
-4. **data**: the stores and why each fits how it is read. Two or three tables.
-5. **arch**: the simulator. 8 to 14 nodes. Presets (4 to 6), controls (4 to 6), and two or three custom `metrics` that expose what the generic ones hide (cache hit rate, fan-out lag).
-6. **chart** (optional, recommended): one curve that sweeps the input the force depends on and reruns the simulator at each point. Latency against peak traffic is the default. See "Charts" in `model.md`.
-7. **tradeoffs**: the two or three decisions that define the design, each with a `pick` and why. Tie each back to something the simulator shows.
-8. **failures**: four. Each has an `inject` preset so the reader can trigger it. Include one that raises no error.
-9. **qa**: what the interviewer asks next. Answers of two or three sentences.
+1. **text** "The big picture": three short paragraphs. What the system does for the user, the one idea that shapes it, and for a real product a link to its source.
+2. **requirements** (optional for a learner): functional, non-functional with numbers (latency, freshness), out of scope.
+3. **arch**, the centrepiece:
+   - 6 to 12 nodes, each with `role`, `why`, `scale`, `fails` in plain words.
+   - Lanes (`groups`) for the layers or paths the design is built from (read path and write path; online, nearline, offline), with `col` and `row` on every node so each lane is a clean band.
+   - 2 to 4 walkthroughs (`flows`): the main request, the main write or event, and the background or failure path. One or two sentences per step, defining each term the first time.
+   - 4 to 6 presets named for what a user would notice, each with a note saying what to watch. 3 to 5 controls.
+   - One or two custom `metrics` in user terms (freshness, what the user sees), next to latency and errors.
+4. **chart** (optional): one curve that sweeps the input the force depends on and reruns the simulator at each point. Latency against peak traffic is the default.
+5. **patterns** or **tradeoffs**: the two or three decisions that define the design, each with a `pick` and a reason tied to a preset.
+6. **failures**: three or four, each with an `inject` preset where possible. Include one that raises no error.
+7. **estimation** "Go deeper": inputs and derived rows, including one row that shows why the naive design fails. Say that numbers for a real product are illustrative.
+8. **api** and **data**: only when they are part of the idea (cursor pagination, a store chosen for how it is read).
+9. **qa**: what a learner asks next, two or three sentences each.
 
 ## Worked examples
 

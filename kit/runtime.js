@@ -29,8 +29,9 @@
     else el.appendChild(typeof c === "object" ? c : document.createTextNode(String(c)));
   }
   function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]; }); }
-  function md(s) { // tiny markdown: **bold**, `code`
-    return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  function md(s) { // tiny markdown: **bold**, `code`, [text](https://link)
+    return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s"]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   }
   function paras(arr) { return (Array.isArray(arr) ? arr : [arr]).map(function (t) { return h("p", { html: md(t) }); }); }
   function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
@@ -289,29 +290,55 @@
   }
 
   builders.arch = function (s) {
-    var NW = 152, NH = 60, GX = 72, GY = 30, PAD = 20;
+    // Layout: columns follow the flow (depth from the sources) unless a node sets `col`;
+    // rows stack within a column unless a node sets `row`. `group` puts nodes in a labelled lane.
+    var groups = s.groups || [], NW = 152, NH = 60, GX = 72, GY = groups.length ? 62 : 30, PAD = 20, TOP = groups.length ? 40 : PAD;
     var nodes = s.nodes, by = {}, depth = {};
     nodes.forEach(function (n) { by[n.id] = n; depth[n.id] = 0; });
     for (var pass = 0; pass < nodes.length; pass++) s.edges.forEach(function (e) { depth[e.to] = Math.max(depth[e.to], depth[e.from] + 1); });
-    var cols = {}, maxD = 0;
-    nodes.forEach(function (n) { var d = depth[n.id]; (cols[d] = cols[d] || []).push(n); maxD = Math.max(maxD, d); });
-    var maxRows = 0; for (var c in cols) maxRows = Math.max(maxRows, cols[c].length);
-    var W = PAD * 2 + (maxD + 1) * NW + maxD * GX, Ht = PAD * 2 + maxRows * NH + (maxRows - 1) * GY;
+    var cols = {}, maxRows = 0;
+    nodes.forEach(function (n) { var c = n.col != null ? n.col : depth[n.id]; n._c = c; (cols[c] = cols[c] || []).push(n); });
+    for (var ck in cols) maxRows = Math.max(maxRows, cols[ck].length);
+    var autoH = maxRows * NH + (maxRows - 1) * GY;
     nodes.forEach(function (n) {
-      var list = cols[depth[n.id]], idx = list.indexOf(n), colH = list.length * NH + (list.length - 1) * GY;
-      n._x = PAD + depth[n.id] * (NW + GX); n._y = PAD + (Ht - 2 * PAD - colH) / 2 + idx * (NH + GY);
-      if (n.row != null) n._y = PAD + n.row * (NH + GY);
+      var list = cols[n._c], idx = list.indexOf(n), colH = list.length * NH + (list.length - 1) * GY;
+      n._x = PAD + n._c * (NW + GX);
+      n._y = n.row != null ? TOP + n.row * (NH + GY) : TOP + (autoH - colH) / 2 + idx * (NH + GY);
     });
+    var W = PAD, Ht = PAD;
+    nodes.forEach(function (n) { W = Math.max(W, n._x + NW + PAD); Ht = Math.max(Ht, n._y + NH + PAD + (groups.length ? 14 : 0)); });
     var svg = h("svg", { viewBox: "0 0 " + W + " " + Ht, role: "img", "aria-label": s.title || "architecture" });
-    var edgeG = h("g"), nodeG = h("g"), dotG = h("g");
-    svg.appendChild(edgeG); svg.appendChild(dotG); svg.appendChild(nodeG);
+    var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g");
+    [laneG, edgeG, dotG, nodeG].forEach(function (g) { svg.appendChild(g); });
+    groups.forEach(function (gr) {
+      var mem = nodes.filter(function (n) { return n.group === gr.id; });
+      if (!mem.length) return;
+      var x0 = Math.min.apply(null, mem.map(function (n) { return n._x; })) - 14, y0 = Math.min.apply(null, mem.map(function (n) { return n._y; })) - 30;
+      var x1 = Math.max.apply(null, mem.map(function (n) { return n._x + NW; })) + 14, y1 = Math.max.apply(null, mem.map(function (n) { return n._y + NH; })) + 12;
+      laneG.appendChild(h("rect", { class: "lane", x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }));
+      laneG.appendChild(h("text", { class: "lanel", x: x0 + 12, y: y0 + 18 }, gr.label, gr.note ? h("tspan", { class: "lanen" }, "  " + gr.note) : null));
+    });
+    // Edges leave the side facing their target: right to left, left to right, or top to bottom.
+    function route(a, b) {
+      var ax = a._x, bx = b._x, d, lx, ly, anchor = "middle";
+      if (bx > ax + 1) {
+        var x1 = ax + NW, y1 = a._y + NH / 2, x2 = bx, y2 = b._y + NH / 2, mx = (x1 + x2) / 2;
+        d = "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2; lx = mx; ly = (y1 + y2) / 2 - 5;
+      } else if (bx < ax - 1) {
+        var u1 = ax, v1 = a._y + NH / 2, u2 = bx + NW, v2 = b._y + NH / 2, mu = (u1 + u2) / 2;
+        d = "M" + u1 + "," + v1 + " C" + mu + "," + v1 + " " + mu + "," + v2 + " " + u2 + "," + v2; lx = mu; ly = (v1 + v2) / 2 - 5;
+      } else {
+        var down = b._y > a._y, cx = ax + NW / 2, sy = down ? a._y + NH : a._y, ey = down ? b._y : b._y + NH;
+        d = "M" + cx + "," + sy + " L" + cx + "," + ey; lx = cx + 7; ly = (sy + ey) / 2 + 4; anchor = "start";
+      }
+      return { d: d, lx: lx, ly: ly, anchor: anchor };
+    }
     var edgeEls = s.edges.map(function (e, k) {
-      var a = by[e.from], b = by[e.to];
-      var x1 = a._x + NW, y1 = a._y + NH / 2, x2 = b._x, y2 = b._y + NH / 2, mx = (x1 + x2) / 2;
-      var path = h("path", { class: "edge" + (e.async ? " async" : ""), d: "M" + x1 + "," + y1 + " C" + mx + "," + y1 + " " + mx + "," + y2 + " " + x2 + "," + y2 });
-      var lab = e.label ? h("text", { class: "elabel", x: mx, y: (y1 + y2) / 2 - 5, "text-anchor": "middle" }, e.label) : null;
+      var r = route(by[e.from], by[e.to]);
+      var path = h("path", { class: "edge" + (e.async ? " async" : ""), d: r.d });
+      var lab = e.label ? h("text", { class: "elabel", x: r.lx, y: r.ly, "text-anchor": r.anchor }, e.label) : null;
       edgeG.appendChild(path); if (lab) edgeG.appendChild(lab);
-      return { path: path, len: 0, dots: [], e: e };
+      return { path: path, len: 0, dots: [], e: e, lab: lab };
     });
     var nodeEls = {};
     var selected = null, detail = h("dl", { class: "detail", style: "display:none" });
@@ -323,7 +350,11 @@
       g.addEventListener("click", pick); g.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } });
       nodeG.appendChild(g); nodeEls[n.id] = { g: g, sub: sub, ub: ub, box: g.firstChild };
     });
-    function paintSel() { nodes.forEach(function (n) { nodeEls[n.id].g.setAttribute("class", "node" + (selected === n.id ? " sel" : "") + (S.m && S.m.nodes[n.id].total === 0 ? " dead" : "")); }); }
+    var hlNodes = {}, hlEdges = {}; // what the current walkthrough step lights up
+    function paintSel() {
+      nodes.forEach(function (n) { nodeEls[n.id].g.setAttribute("class", "node" + (selected === n.id ? " sel" : "") + (hlNodes[n.id] ? " hl" : "") + (S.m && S.m.nodes[n.id].total === 0 ? " dead" : "")); });
+      edgeEls.forEach(function (E, k) { E.path.setAttribute("class", "edge" + (E.e.async ? " async" : "") + (hlEdges[k] ? " hl" : "")); });
+    }
     function paintDetail() {
       detail.innerHTML = "";
       if (!selected) { detail.style.display = "none"; return; }
@@ -340,7 +371,10 @@
       // bottleneck is null when no node has a finite capacity
       { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { var r = m.bottleneck && m.nodes[m.bottleneck]; return !r ? "n/a" : r.total === 0 ? "down" : Math.round(r.util * 100) + "%"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
     ];
-    (s.metrics || []).forEach(function (x, i) { defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); } }); });
+    (s.metrics || []).forEach(function (x, i) {
+      defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); },
+        cls: function (m) { return x.bad && val(x.bad, m) ? "bad" : x.warn && val(x.warn, m) ? "warn" : ""; } });
+    });
     defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });
 
     var note = h("div", { class: "simnote", html: s.intro ? md(s.intro) : "" });
@@ -392,7 +426,47 @@
     onChange(paint);
     if (!reduce) requestAnimationFrame(frame);
     var stage = h("div", { class: "stage" }, svg);
-    return [paras(s.body || []), h("div", { class: "card sim" }, presetBar.childNodes.length ? presetBar : null, stage, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
+    // ----- walkthroughs: step through how a request or an event moves through the system -----
+    var flowBar = null, walk = null;
+    if ((s.flows || []).length) {
+      var flowBtns = [], cur = null, step = 0, wText = h("div", { class: "wtext" }), wCount = h("span", { class: "wcount" });
+      var back = h("button", { class: "chip", onclick: function () { if (step > 0) { step--; show(); } } }, "Back");
+      var next = h("button", { class: "chip", onclick: function () { if (step < cur.steps.length - 1) { step++; show(); } else stopWalk(); } }, "Next");
+      walk = h("div", { class: "walk", style: "display:none" }, h("div", { class: "wctl" }, wCount, back, next, h("button", { class: "chip", onclick: function () { stopWalk(); } }, "Exit")), wText);
+      function edgeBetween(a, b) {
+        for (var k = 0; k < s.edges.length; k++) { var e = s.edges[k]; if ((e.from === a && e.to === b) || (e.from === b && e.to === a)) return k; }
+        return -1;
+      }
+      function show() {
+        var st = cur.steps[step], path = st.path || [];
+        hlNodes = {}; hlEdges = {};
+        path.forEach(function (id, i) { hlNodes[id] = 1; if (i) { var k = edgeBetween(path[i - 1], id); if (k >= 0) hlEdges[k] = 1; } });
+        svg.setAttribute("class", "walking");
+        wCount.textContent = "Step " + (step + 1) + " of " + cur.steps.length;
+        wText.innerHTML = md(st.text || "");
+        back.disabled = step === 0; next.textContent = step === cur.steps.length - 1 ? "Done" : "Next";
+        walk.style.display = "";
+        paintSel();
+        // on a narrow screen the diagram scrolls sideways: bring the lit boxes into view
+        var lit = [].slice.call(svg.querySelectorAll(".node.hl"));
+        if (lit.length && stage.scrollWidth > stage.clientWidth) {
+          var sr = stage.getBoundingClientRect(), l = Infinity, r = -Infinity;
+          lit.forEach(function (g) { var b = g.getBoundingClientRect(); l = Math.min(l, b.left); r = Math.max(r, b.right); });
+          stage.scrollTo({ left: stage.scrollLeft + (l + r) / 2 - (sr.left + sr.width / 2), behavior: reduce ? "auto" : "smooth" });
+        }
+      }
+      function stopWalk() {
+        cur = null; hlNodes = {}; hlEdges = {}; svg.removeAttribute("class"); walk.style.display = "none";
+        flowBtns.forEach(function (b) { b.classList.remove("on"); }); paintSel();
+      }
+      flowBar = h("div", { class: "bar flows" }, h("span", { class: "barl" }, "How it works:"));
+      s.flows.forEach(function (f) {
+        var b = h("button", { class: "chip", onclick: function () { cur = f; step = 0; flowBtns.forEach(function (x) { x.classList.toggle("on", x === b); }); show(); } }, f.label);
+        flowBtns.push(b); flowBar.appendChild(b);
+      });
+    }
+    if (presetBar.childNodes.length) presetBar.insertBefore(h("span", { class: "barl" }, "Try:"), presetBar.firstChild);
+    return [paras(s.body || []), h("div", { class: "card sim" }, flowBar, presetBar.childNodes.length ? presetBar : null, stage, walk, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
   };
 
   // ----- chart: a quantity as a curve -----

@@ -58,6 +58,15 @@ export default {
   idea: "A limit is only as good as the counter behind it. Count in one shared place, with an algorithm that has no window edge to exploit, or a client quietly gets several times its limit.",
   sections: [
     {
+      type: "text",
+      title: "The big picture",
+      body: [
+        "An API serves many clients. A few of them, such as scrapers or a broken retry loop, can send more traffic than everyone else together. A **rate limiter** caps how many requests each client may make per second, so one client cannot slow the API down for all the others.",
+        "It sits in the **gateway**, the front door every request passes through. For each request it checks a counter for that client and either lets the request through or answers **429 Too Many Requests**.",
+        "Two things make it hard. The counter must be shared by every gateway server, or each one enforces the full limit on its own. And the counting rule must have no gap a client can exploit. Walk through a normal request and a flood below, then try breaking it.",
+      ],
+    },
+    {
       type: "requirements",
       title: "What we are building",
       functional: [
@@ -74,9 +83,84 @@ export default {
       outOfScope: ["Billing and quotas per month", "DDoS at the network layer (handled before the gateway)", "Per-endpoint cost weighting"],
     },
     {
+      type: "arch",
+      title: "The architecture",
+      lede: "Start with **How it works**: pick a walkthrough and press Next. Then pick something to **Try** and watch what real clients would notice. Click any box for what it does.",
+      latencyBudget: 100,
+      intro: "Normal traffic: abusive clients are cut to their limit at the gateway. Dots are requests.",
+      groups: [
+        { id: "edge", label: "At the gateway", note: "every request" },
+        { id: "backend", label: "Behind the gateway", note: "allowed requests only" },
+      ],
+      nodes: [
+        { id: "users", label: "Real clients", col: 0, row: 0, kind: "clients", rps: "=r.legitRps", role: "People and apps using the API normally.", why: "The traffic the API exists for. The failure rate shown is theirs." },
+        { id: "bots", label: "Abusive clients", col: 0, row: 1, kind: "clients", rps: "=r.botRps", internal: true, role: "Scrapers, broken retry loops, credential stuffing.", why: "Load that must be cut before it reaches the API. Excluded from the failure rate: their 429s are the point." },
+        { id: "gw", label: "API gateway", group: "edge", col: 1, row: 0, instances: "=p.gwInst", cap: 25000, ms: 1, role: "Terminates requests and asks the limiter before passing them on.", why: "The one place every request passes, so the only place a limit can be enforced cheaply.", scale: "Stateless, add instances. Their count matters only if counters are local.", fails: "Saturates if abusive traffic grows past what it can reject." },
+        { id: "redis", label: "Counter store", group: "edge", col: 1, row: 1, kind: "store", instances: "=p.shards*p.redisUp", cap: 50000, ms: 0.5, role: "One counter per client, shared by every gateway (Redis).", why: "A limit across N gateways needs one count. The check-and-update runs as one Lua script, so two gateways cannot both spend the last token.", scale: "Shard by client id.", fails: "If it is down, the gateway must choose: fail open (no limits) or fail closed (reject everyone)." },
+        { id: "api", label: "API servers", group: "backend", col: 2, row: 0, instances: "=p.apiInst", cap: 2000, ms: 15, role: "Does the actual work.", why: "Sized for real traffic plus headroom, not for abuse.", scale: "Add instances.", fails: "Overloaded the moment abusive traffic gets through." },
+        { id: "db", label: "Database", group: "backend", col: 3, row: 0, kind: "store", instances: 30, cap: 5000, ms: 5, role: "Source of truth behind the API.", why: "The most expensive thing to protect. Most limits exist to keep load off it.", scale: "Read replicas and shards, slowly.", fails: "Falls over after the API does." },
+      ],
+      edges: [
+        { from: "users", to: "gw" },
+        { from: "bots", to: "gw" },
+        { from: "gw", to: "redis", call: true, share: "=p.on*p.central*(p.redisUp+(1-p.redisUp)*(1-p.failOpen))", label: "check" },
+        { from: "gw", to: "api", share: "=r.passFrac", label: "allowed" },
+        { from: "api", to: "db", call: true },
+      ],
+      flows: [
+        {
+          label: "A normal request",
+          steps: [
+            { path: ["users", "gw"], text: "Your app calls the API. The **gateway** identifies the client by its API key." },
+            { path: ["gw", "redis"], text: "It asks the **counter store** (Redis): does this client have a request left right now? Checking and counting happen in one atomic step, so two gateways cannot both spend the last one." },
+            { path: ["gw", "api"], text: "The answer is yes, so the request goes on to the **API servers**..." },
+            { path: ["api", "db"], text: "...which do the work and read the **database**." },
+            { path: ["api", "gw", "users"], text: "The answer goes back. The limiter added well under a millisecond." },
+          ],
+        },
+        {
+          label: "A scraper floods the API",
+          steps: [
+            { path: ["bots", "gw"], text: "A scraper sends 100 requests a second: 20 times the limit of 5." },
+            { path: ["gw", "redis"], text: "The counter store allows its first 5 each second and refuses the rest." },
+            { path: ["gw", "bots"], text: "The gateway answers the refused ones with **429 Too Many Requests** and a time to retry. They never reach the API, so real clients are not slowed down." },
+          ],
+        },
+        {
+          label: "The counter store goes down",
+          steps: [
+            { path: ["gw", "redis"], text: "The gateway cannot check anyone's limit. It has to choose what to do." },
+            { path: ["gw", "api"], text: "**Fail open**: let requests through unchecked. The API stays up, but abuse gets through too. Try \"Counter store down, fail open\"." },
+            { path: ["users", "gw"], text: "**Fail closed**: refuse every request. Abuse stops, and so does everyone else. Try \"Counter store down, fail closed\"." },
+          ],
+        },
+      ],
+      presets: [
+        { label: "Normal traffic", set: {}, note: "Central counters, limiter on. Abusive clients are cut to 5 req/s each, the API runs at about two thirds." },
+        { label: "Limiter off", set: { on: 0 }, note: "Abusive traffic reaches the API. Watch the API servers pass 100% and real clients start failing." },
+        { label: "Count on each gateway", set: { central: 0 }, note: "No counter store and no errors on the limiter, but each client now gets 12 times its limit. The API fills up and the database tips over, and nothing points at the limiter." },
+        { label: "Counter store down, fail closed", set: { redisUp: 0, failOpen: 0 }, note: "Every check fails, so every request is rejected, real clients included. The limiter has become the outage." },
+        { label: "Counter store down, fail open", set: { redisUp: 0, failOpen: 1 }, note: "Requests skip the check and nothing is limited. The API survives only if it has headroom for the abuse." },
+        { label: "Limit too low", set: { limit: 0.3 }, note: "Abuse is crushed, but watch the throttled metric: real clients averaging 0.5 req/s now get 429s." },
+      ],
+      controls: [
+        { id: "on", label: "Rate limiting", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" },
+        { id: "central", label: "Shared counter store", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" },
+        { id: "redisUp", label: "Counter store up", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" },
+        { id: "failOpen", label: "Fail open if store is down", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" },
+        { id: "gwInst", label: "Gateway instances", value: 12, min: 2, max: 40, step: 1 },
+        { id: "shards", label: "Counter store shards", value: 6, min: 1, max: 20, step: 1 },
+        { id: "apiInst", label: "API instances", value: 80, min: 10, max: 200, step: 1 },
+      ],
+      metrics: [
+        { label: "Real clients throttled", expr: "=1-r.legitAllowed/r.legitRps", fmt: "pct" },
+        { label: "Abuse let through", expr: "=r.botAllowed/r.botRps", fmt: "pct" },
+      ],
+    },
+    {
       type: "estimation",
       title: "Estimating the load",
-      lede: "Drag the assumptions. The simulator below uses the same numbers.",
+      lede: "Drag the assumptions. The architecture above uses the same numbers.",
       inputs: [
         { id: "users", label: "Real clients active at peak", value: 2e5, min: 1e4, max: 1e7, log: true, fmt: "si" },
         { id: "userRate", label: "Requests per second from a real client", value: 0.5, min: 0.1, max: 5, step: 0.1 },
@@ -96,49 +180,6 @@ export default {
         { id: "counterOps", label: "Counter store operations", expr: "=(r.legitRps+r.botRps)*p.on*p.central", fmt: "si", unit: "ops/s", why: "Every request, allowed or not, is one atomic read-and-update." },
         { id: "bucketBytes", label: "Counter memory, token bucket", expr: "=(p.users+p.bots)*64", fmt: "bytes", why: "Two numbers and a key per client, about 64 bytes." },
         { id: "logBytes", label: "Counter memory, sliding log", expr: "=(p.users+p.bots)*(48+16*p.limit)", fmt: "bytes", why: "A timestamp per allowed request in the window. Grows with the limit." },
-      ],
-    },
-    {
-      type: "arch",
-      title: "The limiter under load",
-      lede: "Dots are requests. Click a box to see why it is there. Then break it.",
-      latencyBudget: 100,
-      intro: "Everything is healthy: abusive clients are cut to their limit at the gateway. Try a preset.",
-      nodes: [
-        { id: "users", label: "Real clients", kind: "clients", rps: "=r.legitRps", role: "People and apps using the API normally.", why: "The traffic the API exists for. The failure rate shown is theirs." },
-        { id: "bots", label: "Abusive clients", kind: "clients", rps: "=r.botRps", internal: true, role: "Scrapers, broken retry loops, credential stuffing.", why: "Load that must be cut before it reaches the API. Excluded from the failure rate: their 429s are the point." },
-        { id: "gw", label: "API gateway", instances: "=p.gwInst", cap: 25000, ms: 1, role: "Terminates requests and asks the limiter before passing them on.", why: "The one place every request passes, so the only place a limit can be enforced cheaply.", scale: "Stateless, add instances. Their count matters only if counters are local.", fails: "Saturates if abusive traffic grows past what it can reject." },
-        { id: "redis", label: "Counter store", kind: "store", instances: "=p.shards*p.redisUp", cap: 50000, ms: 0.5, role: "One counter per client, shared by every gateway (Redis).", why: "A limit across N gateways needs one count. The check-and-update runs as one Lua script, so two gateways cannot both spend the last token.", scale: "Shard by client id.", fails: "If it is down, the gateway must choose: fail open (no limits) or fail closed (reject everyone)." },
-        { id: "api", label: "API servers", instances: "=p.apiInst", cap: 2000, ms: 15, role: "Does the actual work.", why: "Sized for real traffic plus headroom, not for abuse.", scale: "Add instances.", fails: "Overloaded the moment abusive traffic gets through." },
-        { id: "db", label: "Database", kind: "store", instances: 30, cap: 5000, ms: 5, role: "Source of truth behind the API.", why: "The most expensive thing to protect. Most limits exist to keep load off it.", scale: "Read replicas and shards, slowly.", fails: "Falls over after the API does." },
-      ],
-      edges: [
-        { from: "users", to: "gw" },
-        { from: "bots", to: "gw" },
-        { from: "gw", to: "redis", call: true, share: "=p.on*p.central*(p.redisUp+(1-p.redisUp)*(1-p.failOpen))", label: "check" },
-        { from: "gw", to: "api", share: "=r.passFrac", label: "allowed" },
-        { from: "api", to: "db", call: true },
-      ],
-      presets: [
-        { label: "Reset", set: {}, note: "Central counters, limiter on. Abusive clients are cut to 5 req/s each, the API runs at about two thirds." },
-        { label: "Limiter off", set: { on: 0 }, note: "Abusive traffic reaches the API. Watch the API servers pass 100% and real clients start failing." },
-        { label: "Count on each gateway", set: { central: 0 }, note: "No counter store and no errors on the limiter, but each client now gets 12 times its limit. The API fills up and the database tips over, and nothing points at the limiter." },
-        { label: "Counter store down, fail closed", set: { redisUp: 0, failOpen: 0 }, note: "Every check fails, so every request is rejected, real clients included. The limiter has become the outage." },
-        { label: "Counter store down, fail open", set: { redisUp: 0, failOpen: 1 }, note: "Requests skip the check and nothing is limited. The API survives only if it has headroom for the abuse." },
-        { label: "Limit too low", set: { limit: 0.3 }, note: "Abuse is crushed, but watch the throttled metric: real clients averaging 0.5 req/s now get 429s." },
-      ],
-      controls: [
-        { id: "on", label: "Rate limiting", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" },
-        { id: "central", label: "Shared counter store", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" },
-        { id: "redisUp", label: "Counter store up", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" },
-        { id: "failOpen", label: "Fail open if store is down", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" },
-        { id: "gwInst", label: "Gateway instances", value: 12, min: 2, max: 40, step: 1 },
-        { id: "shards", label: "Counter store shards", value: 6, min: 1, max: 20, step: 1 },
-        { id: "apiInst", label: "API instances", value: 80, min: 10, max: 200, step: 1 },
-      ],
-      metrics: [
-        { label: "Real clients throttled", expr: "=1-r.legitAllowed/r.legitRps", fmt: "pct" },
-        { label: "Abuse let through", expr: "=r.botAllowed/r.botRps", fmt: "pct" },
       ],
     },
     {

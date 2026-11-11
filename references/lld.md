@@ -2,6 +2,7 @@
 
 Section order:
 
+0. **text** "The big picture": what the object model is for, which part changes and which stays fixed, in plain words. Define terms such as interface the first time.
 1. **requirements**: functional, non-functional (extension points, concurrency), out of scope.
 2. **classes**: 6 to 9 classes with fields, methods and a `role` each (the click-through text). Relations: `has` (composition), `uses`, `implements`, `inherits`. Place with `at: [col, row]`. Keep arrows from crossing boxes.
 3. **sequence**: the main flow, 5 to 8 messages, each with a `note` saying why it exists. Mark returns `ret: true`.

@@ -12,6 +12,14 @@ The model is the part that makes the page true. Spend most of your effort here.
    - `hit` (cache only): hit ratio. Pair with an outgoing edge marked `miss: true`. Use `zipf(...)` for a cache sized in memory.
    - Text for the click-through panel: `role`, `why`, `scale`, `fails`.
 
+## Lanes and walkthroughs
+
+The diagram is how a learner understands the system, so lay it out on purpose.
+
+- **`groups`** draw labelled lanes around nodes with the same `group`. Use them for the layers or paths of the design. Give every node `col` and `row` so lanes are clean bands and arrows mostly run left to right or straight down. Nodes without a group (clients, a shared gateway) sit outside the lanes.
+- **`flows`** are walkthroughs. Each step lights up the boxes in its `path`, and the arrows between consecutive ones, and dims the rest. The check script plays every step and fails one that lights nothing or has no text.
+- **Metrics can be words.** `expr: "=p.nearlineOn ? 'in ~1 min' : 'next day'"` with `warn` or `bad` expressions shows effects that are not load: freshness, which version of a result the user gets.
+
 ## Edge semantics
 
 | Edge | Meaning |

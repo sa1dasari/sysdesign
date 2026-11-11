@@ -33,6 +33,15 @@ export default {
   idea: "Keep the lot's bookkeeping dull and push every policy question, which spot and what price, behind a small interface so each can change on its own.",
   sections: [
     {
+      type: "text",
+      title: "The big picture",
+      body: [
+        "This is a **low-level design** question: not how to run a service on many machines, but how to shape the code inside one program so it stays easy to change.",
+        "A parking lot does three things: it gives each arriving vehicle a spot that fits, it charges a fee when the vehicle leaves, and it knows when it is full. The bookkeeping (which spot holds which car) rarely changes. The rules (which spot to choose, what to charge) change all the time.",
+        "So the design keeps the bookkeeping in one plain class and puts each rule behind a small **interface**, a promise of what a piece of code does without saying how. A new pricing rule becomes a new class instead of an edit to the lot. Step through the scenario below: it was produced by running the real code shown on this page.",
+      ],
+    },
+    {
       type: "requirements",
       title: "What we are building",
       functional: ["Vehicles of three types (motorcycle, car, truck) enter and receive a ticket.", "Each vehicle is assigned a free spot it fits in.", "On exit the ticket is turned into a fee based on time and spot size.", "The lot knows when it is full for a given vehicle type."],

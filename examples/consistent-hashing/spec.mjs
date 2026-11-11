@@ -69,7 +69,7 @@ export default {
       type: "text",
       title: "The problem",
       body: [
-        "You have a cache cluster and want each key on exactly one server, chosen without asking anyone. The obvious rule is `server = hash(key) mod N`. It spreads keys evenly and costs nothing.",
+        "You have a cluster of cache servers and want each key (say, a user id) stored on exactly one of them, chosen without asking anyone. A **hash** turns any key into a big, random-looking number, always the same for the same key. The obvious rule is `server = hash(key) mod N`, the remainder after dividing by the number of servers N. It spreads keys evenly and costs nothing.",
         "Then you add a server. N changes, so `hash(key) mod N` changes for almost every key. Each one now looks on the wrong server, misses, and falls through to the database. Adding capacity has just caused an outage.",
         "Consistent hashing fixes this. Hash servers and keys onto the same circle. A key belongs to the first server clockwise from it. A new server takes over only the arcs just before its points, so only those keys move.",
       ],

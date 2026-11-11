@@ -98,6 +98,22 @@ table.cols td.nt{color:var(--mute);font-family:var(--sans);font-size:12px}
 .edge{fill:none;stroke:var(--line);stroke-linecap:round}
 .edge.async{stroke-dasharray:5 4}
 .elabel{font:11.5px var(--mono);fill:var(--mute);paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+/* lanes and walkthroughs */
+.lane{fill:var(--faint);stroke:var(--line);stroke-dasharray:4 4}
+.lanel{font:600 11px var(--mono);letter-spacing:.07em;text-transform:uppercase;fill:var(--mute);paint-order:stroke;stroke:var(--faint);stroke-width:5px;stroke-linejoin:round}
+.lanen{font:400 11px var(--sans);letter-spacing:0;text-transform:none}
+.sim .bar.flows{background:var(--faint)}
+.barl{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);align-self:center;margin-right:2px}
+svg.walking .node:not(.hl),svg.walking .elabel{opacity:.3}
+svg.walking .edge:not(.hl){opacity:.25}
+svg.walking .dot{opacity:.25}
+.edge.hl{stroke:var(--accent);stroke-width:3.5}
+.node.hl rect.box{stroke:var(--accent);stroke-width:2.6}
+.walk{border-top:1px solid var(--line);padding:12px 16px;background:var(--panel)}
+.wctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.wcount{font:600 12px var(--mono);color:var(--accent);margin-right:6px}
+.wtext{font-size:16px;max-width:70ch}
+.chip:disabled{opacity:.4;cursor:default}
 .dot{fill:var(--accent)}
 .dot.async{fill:var(--mute)}
 .detail{padding:14px 16px;border-top:1px solid var(--line);font-size:14px;display:grid;gap:4px 18px;grid-template-columns:auto 1fr}

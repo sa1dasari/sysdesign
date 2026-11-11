@@ -40,6 +40,19 @@ export function validate(spec) {
         if (n.hit != null && !(s.edges ?? []).some((e) => e.from === n.id && e.miss)) bad.push(`arch: cache node ${n.id} has hit but no outgoing edge marked miss:true`);
       }
       if (!(s.presets ?? []).length) bad.push("arch: add presets (10x traffic, kill a node, ...) so the reader can break it");
+      const groupIds = new Set((s.groups ?? []).map((g) => g.id));
+      for (const n of s.nodes ?? []) if (n.group != null && !groupIds.has(n.group)) bad.push(`arch: node ${n.id} is in group "${n.group}", which is not in groups`);
+      const linked = (a, b) => (s.edges ?? []).some((e) => (e.from === a && e.to === b) || (e.from === b && e.to === a));
+      for (const f of s.flows ?? []) {
+        if (!f.label || !(f.steps ?? []).length) bad.push("arch: each flow needs a label and steps");
+        for (const [i, st] of (f.steps ?? []).entries()) {
+          const where = `arch: flow "${f.label}" step ${i + 1}`;
+          if (!st.text) bad.push(`${where} has no text`);
+          if (!(st.path ?? []).length) bad.push(`${where} has no path (the boxes it lights up)`);
+          for (const id of st.path ?? []) if (!nodes.has(id)) bad.push(`${where} names unknown node ${id}`);
+          for (let k = 1; k < (st.path ?? []).length; k++) if (!linked(st.path[k - 1], st.path[k])) bad.push(`${where}: no edge between ${st.path[k - 1]} and ${st.path[k]}`);
+        }
+      }
       const cyc = findCycle(s.nodes ?? [], s.edges ?? []);
       if (cyc) bad.push(`arch: edges form a cycle (${cyc.join(" -> ")}). The simulator needs a one-way graph: model a reply as a \`call: true\` edge, not an edge back`);
     }

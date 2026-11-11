@@ -41,10 +41,18 @@
     // Hit ratio of an ideal cache holding the c most popular of n items when popularity is Zipf(s).
     zipf: function (c, n, s) {
       c = Math.max(1, Math.min(c, n)); s = s == null ? 1 : s;
-      var Hn = function (k) { return Math.abs(s - 1) < 1e-6 ? Math.log(k) + 0.5772 : (Math.pow(k, 1 - s) - 1) / (1 - s) + 1; };
-      return clamp(Hn(c) / Hn(n), 0, 1);
+      return clamp(harmonic(c, s) / harmonic(n, s), 0, 1);
     }
   };
+  // Generalised harmonic number sum(i^-s, i=1..k). Exact sum for the first terms, then the
+  // Euler-Maclaurin tail. Accurate and continuous in s, including s = 1.
+  function harmonic(k, s) {
+    var m = Math.min(Math.floor(k), 32), sum = 0, i;
+    for (i = 1; i <= m; i++) sum += Math.pow(i, -s);
+    if (k <= m) return sum;
+    var integral = Math.abs(s - 1) < 1e-9 ? Math.log(k / m) : (Math.pow(k, 1 - s) - Math.pow(m, 1 - s)) / (1 - s);
+    return sum + integral + (Math.pow(k, -s) - Math.pow(m, -s)) / 2 + s * (Math.pow(m, -s - 1) - Math.pow(k, -s - 1)) / 12;
+  }
   var cache = {};
   function val(x, extra) {
     if (typeof x !== "string" || x.charAt(0) !== "=") return x;
@@ -89,18 +97,21 @@
   }
   var DEFAULTS = {};
   function onChange(fn) { listeners.push(fn); }
+  function readsSim(row) { return typeof row.expr === "string" && /\bm\./.test(row.expr); }
   function recompute() {
+    // rows that do not read the simulation first, so the simulation can use them
     (SPEC.sections || []).forEach(function (s) {
-      (s.rows || []).forEach(function (row) { if (row.id) S.r[row.id] = val(row.expr, null); });
+      (s.rows || []).forEach(function (row) { if (row.id && !readsSim(row)) S.r[row.id] = val(row.expr); });
     });
     var arch = (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0];
     S.m = arch ? simulate(arch) : null;
-    // rows that read the simulation (m) get a second pass
-    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id) S.r[row.id] = val(row.expr, S.m); }); });
+    // then rows that read this simulation result (never a stale one)
+    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id && readsSim(row)) S.r[row.id] = val(row.expr, S.m); }); });
     listeners.forEach(function (f) { f(); });
     if (S.m) document.body.dataset.sim = JSON.stringify({ rps: S.m.rps, err: S.m.err, lat: S.m.lat, bottleneck: S.m.bottleneck });
   }
-  function setParam(id, v) { S.p[id] = v; recompute(); }
+  // any slider (estimation or simulator) can make a preset chip stop matching, so re-check them
+  function setParam(id, v) { S.p[id] = v; recompute(); presetHooks.forEach(function (f) { f(); }); }
 
   // ---------- fluid flow simulation ----------
   // A request rate enters at source nodes and is split along edges. Each node serves up to
@@ -313,7 +324,8 @@
       { id: "rps", label: "Offered load", get: function (m) { return si(m.rps) + " req/s"; } },
       { id: "err", label: "Failed requests", get: function (m) { return fmt(m.err, "pct"); }, cls: function (m) { return m.err > 0.05 ? "bad" : m.err > 0.001 ? "warn" : ""; } },
       { id: "lat", label: "Avg latency", get: function (m) { return fmt(m.lat, "ms"); }, cls: function (m) { return s.latencyBudget && m.lat > s.latencyBudget ? "warn" : ""; } },
-      { id: "bn", label: function (m) { return "Busiest: " + by[m.bottleneck].label; }, get: function (m) { return Math.round(m.nodes[m.bottleneck].util * 100) + "%"; }, cls: function (m) { var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
+      // bottleneck is null when no node has a finite capacity
+      { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { return m.bottleneck ? Math.round(m.nodes[m.bottleneck].util * 100) + "%" : "n/a"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
     ];
     (s.metrics || []).forEach(function (x, i) { defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); } }); });
     defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });
@@ -331,7 +343,7 @@
     (s.controls || []).forEach(function (c) {
       var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || 1, value: c.value, "aria-label": c.label });
       if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
-      inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); presetHooks.forEach(function (f) { f(); }); });
+      inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); });
       ctrlSync.push(function () { var v = S.p[c.id]; inp.value = c.log ? Math.log10(v) : v; o.textContent = fmt(v, c.fmt, c.unit); });
       ctrls.appendChild(h("div", { class: "inp" }, h("label", null, c.label), o, inp));
     });

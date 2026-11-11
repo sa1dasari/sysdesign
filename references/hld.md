@@ -12,7 +12,9 @@ Section order. Cut a section only if it truly has nothing to say.
 8. **failures**: four. Each has an `inject` preset so the reader can trigger it. Include one that raises no error.
 9. **qa**: what the interviewer asks next. Answers of two or three sentences.
 
-## Topic patterns
+## Worked examples
+
+These are shortcuts for common topics, not a limit. Any topic works: for one not listed, use "Any topic" in `SKILL.md`. Many of these also need the object or mechanism view (see step 1 of the workflow).
 
 | Topic | The force | The break-it presets |
 |---|---|---|
@@ -32,6 +34,5 @@ Section order. Cut a section only if it truly has nothing to say.
 | Collaborative editing | Ops per second per document, ordering | One viral doc, reconnect storm, server restart |
 | Stock exchange matching | One ordered book per symbol, latency | Hot symbol, sequencer failover, market-open burst |
 
-For a topic not listed, use the "Any topic" method in `SKILL.md`: the obvious design, the moment it fails, the quantity that measures it, and the preset that shows it.
 
 For ride matching, the model is geospatial: cells per city, driver updates per second, match queries per second. The load is on the location index, not the web tier. Put that tier in the graph.

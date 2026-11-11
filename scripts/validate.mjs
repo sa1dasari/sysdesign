@@ -8,7 +8,9 @@ const KINDS = ["hld", "lld", "concept"];
 export function validate(spec) {
   const bad = [];
   if (!spec.title) bad.push("missing title");
-  if (!KINDS.includes(spec.kind)) bad.push(`kind must be one of ${KINDS.join(", ")}, got ${JSON.stringify(spec.kind)}`);
+  const kinds = [].concat(spec.kind ?? []);
+  if (!kinds.length || kinds.some((k) => !KINDS.includes(k)) || new Set(kinds).size !== kinds.length)
+    bad.push(`kind must be one of ${KINDS.join(", ")}, or a list of them for a page that covers more than one, got ${JSON.stringify(spec.kind)}`);
   if (!spec.idea) bad.push("missing `idea`: the one-sentence insight the whole page hangs on");
   const secs = spec.sections ?? [];
   if (!secs.length) bad.push("no sections");

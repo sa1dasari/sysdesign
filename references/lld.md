@@ -19,7 +19,9 @@ Section order:
 - Every class gets a `role` sentence. The validator enforces it.
 - Concurrency gets its own answer in `qa`: name the window (check then act), and the fix (lock, compare-and-set, single writer).
 
-## Topic patterns
+## Worked examples
+
+These are shortcuts for common topics, not a limit. Any topic works: for one not listed, use "Any topic" in `SKILL.md`. If the class also runs on many machines (an LRU cache becomes a cache cluster), add the system view on the same page.
 
 | Topic | The class that holds changing state | The policy behind an interface | The step to show |
 |---|---|---|---|

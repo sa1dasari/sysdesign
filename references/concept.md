@@ -22,7 +22,9 @@ Section order. Cut a section only if it truly has nothing to say.
 - **Prose must match the measured numbers.** Write the note after looking at the chart, and quote the chart's numbers.
 - **Topics with no numbers** (an auth flow, a consistency model) still get real code: a small simulation of the participants, run to produce the scenario, plus `states` and `sequence`. The moment to show is the wrong order of events: a stale read, a replayed token, a split brain.
 
-## Topic patterns
+## Worked examples
+
+These are shortcuts for common topics, not a limit. Any topic works: for one not listed, use "Any topic" in `SKILL.md`. If the mechanism lives inside a service under load (a rate limiter, a quorum store), add the system view on the same page.
 
 | Topic | The force | What the reader moves or watches |
 |---|---|---|

@@ -2,13 +2,13 @@
 
 A Claude Code skill that explains a system design topic as a live page you can poke.
 
-Ask for a topic and get one self-contained HTML file:
+Ask about any topic and get one self-contained HTML file. Claude works out which views the topic needs and puts them on one page:
 
-- **HLD** topics (news feed, cache, ride matching) get capacity math that recomputes as you drag assumptions, and a request-flow simulator. Click a box to see why it exists, then break the system: cold cache, a celebrity post, a lost worker, a traffic spike.
-- **LLD** topics (parking lot, LRU cache, elevator) get a class diagram, a sequence diagram you can step through, a state machine that enforces its own transition table, and a scenario produced by running the real code shown beside it.
-- **Concept** topics (consistent hashing, Bloom filters, Raft, quorums, token buckets) get live charts that put the naive approach next to the real one, measured by running a reference implementation, plus the protocol's states and messages.
+- **System view (HLD)**, when the topic runs on many machines: capacity math that recomputes as you drag assumptions, and a request-flow simulator. Click a box to see why it exists, then break the system: cold cache, a celebrity post, a lost worker, a traffic spike.
+- **Object view (LLD)**, when there is code worth designing: a class diagram, a sequence diagram you can step through, a state machine that enforces its own transition table, and a scenario produced by running the real code shown beside it.
+- **Mechanism view (concept)**, when an algorithm or protocol is the point: live charts that put the naive approach next to the real one, measured by running a reference implementation.
 
-Any topic works. Topics outside the built-in tables are worked out from the obvious design and the moment it fails (see "Any topic" in `SKILL.md`).
+Most topics need more than one. A rate limiter is a service under load and an algorithm, so its page has the simulator, a chart measured from the algorithm, and the class design. Topics are not limited to a list: the tables in `references/` are worked examples, and anything else is worked out from the obvious design and the moment it fails (see "Any topic" in `SKILL.md`).
 
 Every number on a page comes from one small model the page runs, so prose, tables and simulation cannot drift apart.
 
@@ -19,6 +19,7 @@ Open these in a browser:
 - `examples/news-feed/index.html` (HLD)
 - `examples/parking-lot/index.html` (LLD)
 - `examples/consistent-hashing/index.html` (concept)
+- `examples/rate-limiter/index.html` (HLD + LLD on one page)
 
 Rebuild them with `node scripts/build.mjs examples/news-feed/spec.mjs`.
 
@@ -32,9 +33,12 @@ Then in Claude Code:
 
 ```text
 /sysdesign how does a social media news feed work
+/sysdesign design a rate limiter
 /sysdesign --lld parking lot
 /sysdesign --concept bloom filter
 ```
+
+No flag is needed: Claude picks the views. A flag only says which view should lead.
 
 Needs Node 20.10+. Chrome or Chromium is used by `scripts/check.mjs` (found on PATH, or set `CHROME=/path/to/chrome`). No packages to install.
 

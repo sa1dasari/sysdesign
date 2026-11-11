@@ -5,7 +5,7 @@
 //  - every simulator preset is clicked and the resulting numbers are printed, so you can
 //    confirm each preset does what its note claims
 //  - screenshots (full page, and each section) are written so you can look at them
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -17,9 +17,10 @@ const opt = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const shots = opt("--shots", null), width = +opt("--width", 1280);
 if (!page) { console.error("usage: check.mjs <page.html> [--shots dir] [--width 1280]"); process.exit(2); }
 
-const chromeBin = ["google-chrome", "chromium", "chromium-browser", "chrome"].find((b) => {
-  try { return spawn("which", [b]).on("error", () => {}) && true; } catch { return false; }
-}) ?? "google-chrome";
+// Use $CHROME if set, else the first browser found on PATH.
+const onPath = (b) => { try { execFileSync("which", [b], { stdio: "ignore" }); return true; } catch { return false; } };
+const chromeBin = process.env.CHROME || ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome"].find(onPath);
+if (!chromeBin) { console.error("no Chrome or Chromium found on PATH. Set CHROME=/path/to/chrome"); process.exit(2); }
 const port = 9300 + Math.floor(Math.random() * 500);
 const profile = mkdtempSync(join(tmpdir(), "sd-chrome-"));
 const proc = spawn(chromeBin, ["--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", `--remote-debugging-port=${port}`,

@@ -27,20 +27,20 @@
   // 24x24 pictograms. Classes (styled in style.css) carry the colours so both themes work:
   // p = panel fill + ink stroke, k = solid ink, a = warm accent, g = green accent, n = stroke only.
   var ICONS = {
-    phone: '<rect class="p" x="6" y="2" width="12" height="20" rx="2.5"/><rect class="m" x="8" y="5" width="8" height="12" rx="1"/><circle class="k" cx="12" cy="19.3" r="1"/>',
-    browser: '<rect class="p" x="2.5" y="4" width="19" height="16" rx="2"/><path class="n" d="M2.5 9h19"/><circle class="a" cx="5.5" cy="6.5" r=".9"/><circle class="g" cx="8.5" cy="6.5" r=".9"/>',
-    user: '<circle class="p" cx="12" cy="8" r="4"/><path class="p" d="M4 21c0-4.5 3.6-7 8-7s8 2.5 8 7z"/>',
-    server: '<rect class="p" x="3" y="3" width="18" height="7" rx="1.5"/><rect class="p" x="3" y="14" width="18" height="7" rx="1.5"/><circle class="g" cx="7" cy="6.5" r="1.2"/><circle class="g" cx="7" cy="17.5" r="1.2"/>',
+    phone: '<rect class="p" x="6" y="2" width="12" height="20" rx="2.5" stroke-width="1.6"/><rect class="m" x="8" y="5" width="8" height="12" rx="1" stroke-width="1.6"/><circle class="k" cx="12" cy="19.3" r="1" stroke-width="1.6"/>',
+    browser: '<rect class="p" x="2.5" y="4" width="19" height="16" rx="2" stroke-width="1.6"/><path class="n" d="M2.5 9h19" stroke-width="1.6"/><circle class="a" cx="5.5" cy="6.5" r=".9" stroke-width="1.6"/><circle class="g" cx="8.5" cy="6.5" r=".9" stroke-width="1.6"/>',
+    user: '<circle class="p" cx="12" cy="8" r="4" stroke-width="1.6"/><path class="p" d="M4 21c0-4.5 3.6-7 8-7s8 2.5 8 7z" stroke-width="1.6"/>',
+    server: '<rect class="p" x="3" y="3" width="18" height="7" rx="1.5" stroke-width="1.6"/><rect class="p" x="3" y="14" width="18" height="7" rx="1.5" stroke-width="1.6"/><circle class="g" cx="7" cy="6.5" r="1.2" stroke-width="1.6"/><circle class="g" cx="7" cy="17.5" r="1.2" stroke-width="1.6"/>',
     worker: '<path class="p" d="M12 2l2 3 3.5-1 .5 3.6 3.4 1.2-1.6 3.2 1.6 3.2-3.4 1.2-.5 3.6-3.5-1-2 3-2-3-3.5 1-.5-3.6-3.4-1.2L4.1 12 2.5 8.8l3.4-1.2L6.4 4l3.5 1z" stroke-width="1.4"/><circle class="m" cx="12" cy="12" r="3.4" stroke-width="1.4"/>',
-    queue: '<rect class="p" x="2" y="7" width="5" height="10" rx="1"/><rect class="p" x="9.5" y="7" width="5" height="10" rx="1"/><rect class="a" x="17" y="7" width="5" height="10" rx="1"/>',
-    cache: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3"/><path class="a" d="M13 9l-4 6h3l-1 4 4-6h-3z" stroke-width=".8"/>',
-    database: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3"/><path class="n" d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" stroke-width="1.2"/>',
-    storage: '<path class="p" d="M3 8l2-4h14l2 4v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path class="n" d="M3 8h18"/><rect class="a" x="9" y="11" width="6" height="3" rx="1"/>',
-    batch: '<rect class="p" x="3" y="13" width="18" height="7" rx="1.5"/><rect class="p" x="3" y="8" width="18" height="4" rx="1.2"/><rect class="a" x="3" y="3.5" width="18" height="3.5" rx="1.2"/>',
-    lock: '<path class="n" d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3"/><rect class="p" x="4.5" y="11" width="15" height="10" rx="2"/><circle class="a" cx="12" cy="16" r="1.5"/>',
-    globe: '<circle class="p" cx="12" cy="12" r="9"/><ellipse class="n" cx="12" cy="12" rx="4" ry="9" stroke-width="1.2"/><path class="n" d="M3 12h18" stroke-width="1.2"/><circle class="g" cx="12" cy="12" r="1.4"/>',
-    search: '<circle class="p" cx="10.5" cy="10.5" r="6.5"/><path class="n" d="M15.5 15.5L21 21" stroke-width="2.4"/><circle class="a" cx="10.5" cy="10.5" r="2"/>',
-    mail: '<rect class="p" x="2.5" y="5" width="19" height="14" rx="2"/><path class="n" d="M3 7l9 7 9-7"/><circle class="a" cx="18.5" cy="6" r="2.6"/>'
+    queue: '<rect class="p" x="2" y="7" width="5" height="10" rx="1" stroke-width="1.6"/><rect class="p" x="9.5" y="7" width="5" height="10" rx="1" stroke-width="1.6"/><rect class="a" x="17" y="7" width="5" height="10" rx="1" stroke-width="1.6"/>',
+    cache: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" stroke-width="1.6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3" stroke-width="1.6"/><path class="a" d="M13 9l-4 6h3l-1 4 4-6h-3z" stroke-width=".8"/>',
+    database: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" stroke-width="1.6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3" stroke-width="1.6"/><path class="n" d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" stroke-width="1.2"/>',
+    storage: '<path class="p" d="M3 8l2-4h14l2 4v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" stroke-width="1.6"/><path class="n" d="M3 8h18" stroke-width="1.6"/><rect class="a" x="9" y="11" width="6" height="3" rx="1" stroke-width="1.6"/>',
+    batch: '<rect class="p" x="3" y="13" width="18" height="7" rx="1.5" stroke-width="1.6"/><rect class="p" x="3" y="8" width="18" height="4" rx="1.2" stroke-width="1.6"/><rect class="a" x="3" y="3.5" width="18" height="3.5" rx="1.2" stroke-width="1.6"/>',
+    lock: '<path class="n" d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3" stroke-width="1.6"/><rect class="p" x="4.5" y="11" width="15" height="10" rx="2" stroke-width="1.6"/><circle class="a" cx="12" cy="16" r="1.5" stroke-width="1.6"/>',
+    globe: '<circle class="p" cx="12" cy="12" r="9" stroke-width="1.6"/><ellipse class="n" cx="12" cy="12" rx="4" ry="9" stroke-width="1.2"/><path class="n" d="M3 12h18" stroke-width="1.2"/><circle class="g" cx="12" cy="12" r="1.4" stroke-width="1.6"/>',
+    search: '<circle class="p" cx="10.5" cy="10.5" r="6.5" stroke-width="1.6"/><path class="n" d="M15.5 15.5L21 21" stroke-width="2.4"/><circle class="a" cx="10.5" cy="10.5" r="2" stroke-width="1.6"/>',
+    mail: '<rect class="p" x="2.5" y="5" width="19" height="14" rx="2" stroke-width="1.6"/><path class="n" d="M3 7l9 7 9-7" stroke-width="1.6"/><circle class="a" cx="18.5" cy="6" r="2.6" stroke-width="1.6"/>'
   };
   function iconFor(n) {
     if (n.icon && ICONS[n.icon]) return n.icon;
@@ -374,9 +374,9 @@
     var W = PAD, Ht = PAD;
     nodes.forEach(function (n) { W = Math.max(W, n._x + NW + PAD); Ht = Math.max(Ht, n._y + NH + PAD + (groups.length ? 14 : 0)); });
     var svg = h("svg", { viewBox: "0 0 " + W + " " + Ht, role: "img", "aria-label": s.title || "architecture" });
-    var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g");
+    var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g"), tokG = h("g");
     if (!iconsPlaced) { svg.appendChild(iconDefs()); iconsPlaced = true; }
-    [laneG, edgeG, dotG, nodeG].forEach(function (g) { svg.appendChild(g); });
+    [laneG, edgeG, dotG, nodeG, tokG].forEach(function (g) { svg.appendChild(g); });
     groups.forEach(function (gr) {
       var mem = nodes.filter(function (n) { return n.group === gr.id; });
       if (!mem.length) return;
@@ -500,6 +500,22 @@
         if (!E.len) E.len = E.path.getTotalLength();
       });
     }
+    // ----- walkthrough tokens: a labelled dot that rides each lit arrow, in step path order -----
+    var toks = [], TOK_MS = 2400;
+    function placeToken(T, u) {
+      var L = T.E.len || (T.E.len = T.E.path.getTotalLength()), p = T.E.path.getPointAtLength((T.rev ? 1 - u : u) * L);
+      T.g.setAttribute("transform", "translate(" + p.x + " " + p.y + ")");
+    }
+    function clearTokens() { toks.forEach(function (T) { tokG.removeChild(T.g); }); toks = []; }
+    function addToken(k, from, to, label, now) {
+      var E = edgeEls[k], g = h("g", { class: "tok", "data-from": from, "data-to": to }), txt = h("text", { class: "toklabel", y: -14, "text-anchor": "middle" }, label);
+      var rect = h("rect", { class: "tokpill", rx: 8, ry: 8, height: 16, y: -22 });
+      g.appendChild(h("circle", { class: "tokdot", r: 5 })); g.appendChild(rect); g.appendChild(txt); tokG.appendChild(g);
+      var w = txt.getComputedTextLength() + 14;
+      rect.setAttribute("width", w); rect.setAttribute("x", -w / 2); txt.setAttribute("y", -10);
+      var T = { g: g, E: E, rev: E.e.from !== from, t0: now };
+      toks.push(T); placeToken(T, reduce ? 0.5 : 0);
+    }
     function frame(now) {
       var t = (now - t0) / 1000;
       edgeEls.forEach(function (E) {
@@ -508,6 +524,7 @@
         var speed = 110 / Math.max(E.len, 1);
         E.dots.forEach(function (d, i) { var u = ((t * speed) + i / E.dots.length) % 1, p = E.path.getPointAtLength(u * E.len); d.setAttribute("cx", p.x); d.setAttribute("cy", p.y); });
       });
+      toks.forEach(function (T) { placeToken(T, ((now - T.t0) / TOK_MS) % 1); });
       requestAnimationFrame(frame);
     }
     onChange(paint);
@@ -524,10 +541,11 @@
         for (var k = 0; k < s.edges.length; k++) { var e = s.edges[k]; if ((e.from === a && e.to === b) || (e.from === b && e.to === a)) return k; }
         return -1;
       }
+      function carryOf(st) { return st.carry || String(st.text || "").replace(/\*\*/g, "").split(/\s+/).filter(Boolean).slice(0, 3).join(" "); }
       function show() {
-        var st = cur.steps[step], path = st.path || [];
-        hlNodes = {}; hlEdges = {};
-        path.forEach(function (id, i) { hlNodes[id] = 1; if (i) { var k = edgeBetween(path[i - 1], id); if (k >= 0) hlEdges[k] = 1; } });
+        var st = cur.steps[step], path = st.path || [], now = performance.now();
+        hlNodes = {}; hlEdges = {}; clearTokens();
+        path.forEach(function (id, i) { hlNodes[id] = 1; if (i) { var k = edgeBetween(path[i - 1], id); if (k >= 0) { hlEdges[k] = 1; addToken(k, path[i - 1], id, carryOf(st), now); } } });
         svg.setAttribute("class", "walking");
         wCount.textContent = "Step " + (step + 1) + " of " + cur.steps.length;
         wText.innerHTML = md(st.text || "");
@@ -543,7 +561,7 @@
         }
       }
       function stopWalk() {
-        cur = null; hlNodes = {}; hlEdges = {}; svg.removeAttribute("class"); walk.style.display = "none";
+        cur = null; hlNodes = {}; hlEdges = {}; clearTokens(); svg.removeAttribute("class"); walk.style.display = "none";
         flowBtns.forEach(function (b) { b.classList.remove("on"); }); paintSel();
       }
       flowBar = h("div", { class: "bar flows" }, h("span", { class: "barl" }, "How it works:"));

@@ -64,4 +64,6 @@ Needs Node 20.10+. Chrome or Chromium is used by `scripts/check.mjs` (found on P
 
 The simulator is a steady-state fluid model with M/M/1-shaped latency. It shows which tier saturates first and what users feel. It is not a production performance predictor.
 
+`node --test tests/` runs the tests; they need Playwright.
+
 MIT licensed.

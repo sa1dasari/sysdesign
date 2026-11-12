@@ -9,11 +9,14 @@ import { validate } from "./validate.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-export async function build(specPath, outPath) {
+export async function build(specPath, outPath, opts = {}) {
   const mod = await import(pathToFileURL(resolve(specPath)).href);
   const spec = mod.default ?? mod.spec;
   if (!spec) throw new Error(`${specPath} must export a spec (default export)`);
   const problems = validate(spec);
+  if (problems.length && opts.throwOnProblems) {
+    throw new Error(`spec problems in ${specPath}:\n  - ` + problems.join("\n  - "));
+  }
   if (problems.length) {
     console.error(`spec problems in ${specPath}:\n  - ` + problems.join("\n  - "));
     process.exit(1);

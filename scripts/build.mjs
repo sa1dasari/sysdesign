@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { validate } from "./validate.mjs";
+import { validate, lint } from "./validate.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -21,6 +21,7 @@ export async function build(specPath, outPath, opts = {}) {
     console.error(`spec problems in ${specPath}:\n  - ` + problems.join("\n  - "));
     process.exit(1);
   }
+  for (const w of lint(spec)) console.log("warn   " + w);
   const css = readFileSync(join(root, "kit/style.css"), "utf8");
   const js = readFileSync(join(root, "kit/runtime.js"), "utf8");
   const json = JSON.stringify(spec).replace(/</g, "\\u003c").replace(/[\u2028\u2029]/g, "");

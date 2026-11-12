@@ -22,3 +22,31 @@ test("mini spec passes check.mjs cleanly", async () => {
   assert.equal(code, 0, out);
   assert.doesNotMatch(out, /FAIL|WARN/);
 });
+
+import { validate } from "../scripts/validate.mjs";
+import { lint } from "../scripts/validate.mjs";
+
+test("validate rejects unknown icon", () => {
+  const spec = miniSpec(); spec.sections[1].nodes[1].icon = "rocket";
+  assert.ok(validate(spec).some((e) => /icon "rocket".*phone, browser/.test(e)));
+});
+
+test("validate rejects long carry", () => {
+  const spec = miniSpec(); spec.sections[1].flows[0].steps[0].carry = "x".repeat(17);
+  assert.ok(validate(spec).some((e) => /at most 16/.test(e)));
+});
+
+test("validate rejects bad flowPicture and expect", () => {
+  const spec = miniSpec({ flowPicture: "no" }); spec.sections[1].presets[1].expect = "m.err";
+  const bad = validate(spec);
+  assert.ok(bad.some((e) => /flowPicture/.test(e)));
+  assert.ok(bad.some((e) => /expect/.test(e)));
+});
+
+test("lint warns on missing carry", () => {
+  assert.equal(lint(miniSpec()).length, 0);
+  const spec = miniSpec(); delete spec.sections[1].flows[0].steps[0].carry;
+  const w = lint(spec);
+  assert.equal(w.length, 1);
+  assert.match(w[0], /step 1 has no carry; using "/);
+});

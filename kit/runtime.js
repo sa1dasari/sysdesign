@@ -96,19 +96,28 @@
   var cache = {};
   // Evaluate "=expr". Expressions read p (params), r (rows), m (simulation result) and,
   // inside a chart, x (the value on the horizontal axis).
-  function val(expr, extra, xv) {
+  function val(expr, extra, xv, keepNaN) {
     if (typeof expr !== "string" || expr.charAt(0) !== "=") return expr;
     var f = cache[expr];
     if (!f) {
       try { f = cache[expr] = new Function("p", "r", "m", "H", "x", "with(H){return (" + expr.slice(1) + ")}"); }
       catch (e) { fail("bad expression " + expr + ": " + e.message); f = cache[expr] = function () { return 0; }; }
     }
-    try { var v = f(S.p, S.r, extra || S.m, H, xv); return v == null || isNaN(v) && typeof v === "number" ? 0 : v; }
+    try { var v = f(S.p, S.r, extra || S.m, H, xv); return v == null || isNaN(v) && typeof v === "number" ? (keepNaN ? NaN : 0) : v; }
     catch (e) { fail("expression " + expr + ": " + e.message); return 0; }
+  }
+  // Like val(), but for numbers the reader sees: NaN or undefined stay NaN, so fmt shows "n/a".
+  // The simulator's own inputs keep val()'s 0 fallback.
+  function shownVal(expr, extra, xv) { return val(expr, extra, xv, true); }
+  // Put a formatted value in an element; a shown "n/a" is marked data-na so the checks can count it.
+  function put(el, text, shown) {
+    if (shown && text === "n/a") { el.textContent = ""; el.appendChild(h("span", { "data-na": "" }, text)); }
+    else el.textContent = text;
   }
   function fail(msg) { document.body.dataset.error = (document.body.dataset.error || "") + msg + " | "; }
   function fmt(v, f, unit) {
     if (typeof v !== "number") return String(v);
+    if (isNaN(v)) return "n/a";
     var s;
     if (f === "pct") s = (v * 100).toFixed(v < 0.1 ? 2 : 1) + "%";
     else if (f === "bytes") s = scale(v, ["B", "KB", "MB", "GB", "TB", "PB", "EB"], 1000);
@@ -293,7 +302,7 @@
     var tb = h("table", { class: "rows" });
     (s.rows || []).forEach(function (row) {
       var td = h("td");
-      onChange(function () { td.textContent = fmt(val(row.expr), row.fmt, row.unit); });
+      onChange(function () { put(td, fmt(shownVal(row.expr), row.fmt, row.unit), true); });
       tb.appendChild(h("tr", null, h("td", null, row.label, row.why ? h("span", { class: "why", html: md(row.why) }) : null), td));
     });
     return [paras(s.body || []), h("div", { class: "est" }, inputs, h("div", { class: "card" }, h("h3", null, "Derived"), tb))];
@@ -377,13 +386,14 @@
     var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g"), tokG = h("g");
     if (!iconsPlaced) { svg.appendChild(iconDefs()); iconsPlaced = true; }
     [laneG, edgeG, dotG, nodeG, tokG].forEach(function (g) { svg.appendChild(g); });
+    var laneJobs = [];
     groups.forEach(function (gr) {
       var mem = nodes.filter(function (n) { return n.group === gr.id; });
       if (!mem.length) return;
       var x0 = Math.min.apply(null, mem.map(function (n) { return n._x; })) - 14, y0 = Math.min.apply(null, mem.map(function (n) { return n._y; })) - 30;
       var x1 = Math.max.apply(null, mem.map(function (n) { return n._x + NW; })) + 14, y1 = Math.max.apply(null, mem.map(function (n) { return n._y + NH; })) + 12;
-      laneG.appendChild(h("rect", { class: "lane", x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }));
-      laneG.appendChild(h("text", { class: "lanel", x: x0 + 12, y: y0 + 18 }, gr.label, gr.note ? h("tspan", { class: "lanen" }, "  " + gr.note) : null));
+      var lr = h("rect", { class: "lane", x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }), lt = h("text", { class: "lanel", x: x0 + 12, y: y0 + 18 }, gr.label, gr.note ? h("tspan", { class: "lanen" }, "  " + gr.note) : null);
+      laneG.appendChild(lr); laneG.appendChild(lt); laneJobs.push({ rect: lr, text: lt, x0: x0 });
     });
     // Edges leave the side facing their target: right to left, left to right, or top to bottom.
     function route(a, b) {
@@ -422,6 +432,13 @@
     });
     // Labels are measured once the SVG is in the page; one that overflows wraps to two 13px lines.
     function fitLabels() {
+      // a lane is as wide as its boxes, or as its label when that is longer; the SVG grows to hold it
+      laneJobs.forEach(function (j) {
+        var need = j.text.getBBox().width + 24;
+        if (need > +j.rect.getAttribute("width")) j.rect.setAttribute("width", need);
+        var right = j.x0 + Math.max(need, +j.rect.getAttribute("width")) + 4;
+        if (right > W) { W = right; svg.setAttribute("viewBox", "0 0 " + W + " " + Ht); }
+      });
       labelJobs.forEach(function (j) {
         if (j.el.getComputedTextLength() <= NW - 54) return;
         var words = j.label.split(" "), best = 1, bestGap = Infinity, mid = j.label.length / 2, pos = 0;
@@ -447,8 +464,9 @@
       if (!selected) { detail.style.display = "none"; return; }
       var n = by[selected], r = S.m && S.m.nodes[selected]; detail.style.display = "grid";
       var rows = [["Role", n.role], ["Why it's here", n.why], ["Scales by", n.scale], ["Fails by", n.fails]];
-      if (r) rows.push(["Load now", r.total === 0 ? "down, " + si(r.inflow) + " req/s arriving with no capacity to take them" : si(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + si(r.total) + " capacity (" + Math.round(r.util * 100) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + si(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + si(r.growth) + "/s" : "")]);
-      rows.forEach(function (x) { if (x[1]) { detail.appendChild(h("dt", null, x[0])); detail.appendChild(h("dd", { html: md(x[1]) })); } });
+      var NA = "\uE000n/a\uE001", sn = function (v) { return typeof v === "number" && !isNaN(v) ? si(v) : NA; };
+      if (r) rows.push(["Load now", r.total === 0 ? "down, " + sn(r.inflow) + " req/s arriving with no capacity to take them" : sn(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + sn(r.total) + " capacity (" + (isNaN(r.util) ? NA : Math.round(r.util * 100)) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + sn(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + sn(r.growth) + "/s" : "")]);
+      rows.forEach(function (x) { if (x[1]) { detail.appendChild(h("dt", null, x[0])); detail.appendChild(h("dd", { html: md(x[1]).replace(/\uE000([^\uE001]*)\uE001/g, "<span data-na>$1</span>") })); } });
     }
     var metricEls = {}, metricBar = h("div", { class: "metrics" });
     var defs = [
@@ -459,7 +477,7 @@
       { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { var r = m.bottleneck && m.nodes[m.bottleneck]; return !r ? "n/a" : r.total === 0 ? "down" : Math.round(r.util * 100) + "%"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
     ];
     (s.metrics || []).forEach(function (x, i) {
-      defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); },
+      defs.push({ id: "x" + i, label: x.label, shown: true, get: function (m) { return fmt(shownVal(x.expr, m), x.fmt, x.unit); },
         cls: function (m) { return x.bad && val(x.bad, m) ? "bad" : x.warn && val(x.warn, m) ? "warn" : ""; } });
     });
     defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });
@@ -489,7 +507,7 @@
         el.ub.setAttribute("width", w); el.ub.setAttribute("class", "ubar" + (r.util >= 1 ? " hot" : r.util > 0.8 ? " warn" : ""));
       });
       paintSel(); paintDetail();
-      defs.forEach(function (d) { var e = metricEls[d.id]; e.b.textContent = d.get(m); if (typeof d.label === "function") e.lab.textContent = d.label(m); e.box.className = "metric " + (d.cls ? d.cls(m) : ""); });
+      defs.forEach(function (d) { var e = metricEls[d.id]; put(e.b, d.get(m), d.shown); if (typeof d.label === "function") e.lab.textContent = d.label(m); e.box.className = "metric " + (d.cls ? d.cls(m) : ""); });
       // edge widths and particle counts follow flow
       edgeEls.forEach(function (E, k) {
         var f = m.edges[k] ? m.edges[k].flow : 0;
@@ -555,6 +573,7 @@
           for (var j = 1; j < path.length; j++) rows.push({ i: i, a: path[j - 1], b: path[j] });
         });
         var W = Math.max(ids.length, 1) * FL_GAP, H = FL_TOP + rows.length * FL_ROW + 12;
+        var broken = window.__sysdesign_test && window.__sysdesign_test.breakPicture, skipped = false;
         var x = function (id) { return FL_GAP / 2 + ids.indexOf(id) * FL_GAP; };
         var g = h("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "img", "aria-label": flow.steps.map(function (st) { return plain(st.text); }).join(" Then ") });
         var mk = function (id, cls) { return h("marker", { id: id, viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, h("path", { class: cls, d: "M0,0 L10,5 L0,10 z" })); };
@@ -568,21 +587,28 @@
           g.appendChild(fl);
         });
         fhs = [];
+        fpic.innerHTML = ""; fpic.style.display = s.flowPicture === false ? "none" : ""; fpic.appendChild(g); // attached, so text can be measured
         rows.forEach(function (r, k) {
           var y = FL_TOP + 14 + k * FL_ROW, st = flow.steps[r.i], lab = (r.i + 1) + " \u00b7 " + carryOf(st);
           var el = h("g", { class: "fh" + (r.note ? " note" : ""), "data-step": r.i, onclick: function () { show(r.i); } });
-          el.appendChild(h("rect", { class: "fhband", x: Math.min(x(r.a), x(r.b)) - 14, y: y - 22, width: Math.abs(x(r.a) - x(r.b)) + 28 + (r.note ? 90 : 0), height: FL_ROW - 6, rx: 6 }));
+          var band = h("rect", { class: "fhband", x: Math.min(x(r.a), x(r.b)) - 14, y: y - 22, width: Math.abs(x(r.a) - x(r.b)) + 28, height: FL_ROW - 6, rx: 6 });
+          el.appendChild(band);
           if (r.note) {
             el.appendChild(h("circle", { class: "fhdot", cx: x(r.a), cy: y, r: 4 }));
-            el.appendChild(h("text", { class: "fhlabel", x: x(r.a) + 10, y: y + 4 }, lab));
+            var nt = h("text", { class: "fhlabel", x: x(r.a) + 10, y: y + 4 }, lab);
+            el.appendChild(nt); g.appendChild(el); // measured once in the page: the band and the SVG follow the label
+            var need = x(r.a) + 10 + nt.getComputedTextLength() + 14;
+            band.setAttribute("width", need - (x(r.a) - 14));
+            if (need > W) { W = need; g.setAttribute("viewBox", "0 0 " + W + " " + H); g.setAttribute("width", W); }
           } else {
             var dir = x(r.b) >= x(r.a) ? 1 : -1;
-            el.appendChild(h("line", { class: "fharrow", x1: x(r.a) + dir * 3, y1: y, x2: x(r.b) - dir * 3, y2: y, "marker-end": "url(#" + mkId + ")" }));
+            if (broken && !skipped) skipped = true;
+            else el.appendChild(h("line", { class: "fharrow", x1: x(r.a) + dir * 3, y1: y, x2: x(r.b) - dir * 3, y2: y, "marker-end": "url(#" + mkId + ")" }));
             el.appendChild(h("text", { class: "fhlabel", x: (x(r.a) + x(r.b)) / 2, y: y - 7, "text-anchor": "middle" }, lab));
           }
-          g.appendChild(el); fhs.push(el);
+          if (!el.parentNode) g.appendChild(el);
+          fhs.push(el);
         });
-        fpic.innerHTML = ""; fpic.appendChild(g);
       }
       function paintPicture() {
         if (s.flowPicture === false) { fpic.style.display = "none"; return; }
@@ -685,7 +711,8 @@
       return { xs: xs, ys: ys };
     }
     function shown(v) { return isFinite(v) && (!Y.log || v > 0); }
-    function now(e) { return X.param && !e.y ? +val(e.expr, S.m, S.p[X.param]) : NaN; }
+    function now(e) { return X.param && !e.y ? +shownVal(e.expr, S.m, S.p[X.param]) : NaN; }
+    function liveOn(e) { return X.param && !e.y; }
 
     var svg = h("svg", { viewBox: "0 0 " + W + " " + Hh, role: "img", "aria-label": s.title || "chart" });
     clipRect = h("rect", { x: ML, y: MT - 3, width: PW, height: PH + 6 });
@@ -761,7 +788,7 @@
       legend.innerHTML = "";
       if (ser.length > 1 || X.param) ser.forEach(function (e, j) {
         var v = now(e);
-        legend.appendChild(h("span", null, h("i", { class: "s" + j }), e.label, isFinite(v) ? h("b", null, fmt(v, Y.fmt, Y.unit)) : null));
+        legend.appendChild(h("span", null, h("i", { class: "s" + j }), e.label, isFinite(v) ? h("b", null, fmt(v, Y.fmt, Y.unit)) : liveOn(e) && isNaN(v) ? h("b", null, h("span", { "data-na": "" }, "n/a")) : null));
       });
       legend.style.display = legend.childNodes.length ? "" : "none";
       table.innerHTML = "";

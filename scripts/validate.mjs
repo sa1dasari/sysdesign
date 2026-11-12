@@ -4,6 +4,8 @@
 const TYPES = new Set(["text", "requirements", "estimation", "api", "data", "arch", "tradeoffs", "failures", "qa",
   "patterns", "classes", "sequence", "states", "scenario", "code", "chart"]);
 const KINDS = ["hld", "lld", "concept"];
+const ICONS = ["phone", "browser", "user", "server", "worker", "queue", "cache", "database", "storage", "batch", "lock", "globe", "search", "mail"];
+const MAX_CARRY = 16;
 
 export function validate(spec) {
   const bad = [];
@@ -35,7 +37,9 @@ export function validate(spec) {
         if (!nodes.has(e.from) || !nodes.has(e.to)) bad.push(`arch: edge ${e.from}->${e.to} names an unknown node`);
       }
       if (!(s.nodes ?? []).some((n) => n.rps != null)) bad.push("arch: needs at least one source node with `rps`");
+      if (s.flowPicture != null && typeof s.flowPicture !== "boolean") bad.push(`arch: flowPicture must be true or false, got ${JSON.stringify(s.flowPicture)}`);
       for (const n of s.nodes ?? []) {
+        if (n.icon != null && !ICONS.includes(n.icon)) bad.push(`arch: node ${n.id} has icon ${JSON.stringify(n.icon)}, which is not one of ${ICONS.join(", ")}`);
         if (!n.role && !n.why) bad.push(`arch: node ${n.id} has no role or why (the click-through panel would be empty)`);
         if (n.hit != null && !(s.edges ?? []).some((e) => e.from === n.id && e.miss)) bad.push(`arch: cache node ${n.id} has hit but no outgoing edge marked miss:true`);
         if (n.hit != null) for (const e of (s.edges ?? []).filter((e) => e.from === n.id && !e.miss && !e.call && !e.async))
@@ -50,6 +54,7 @@ export function validate(spec) {
         for (const [i, st] of (f.steps ?? []).entries()) {
           const where = `arch: flow "${f.label}" step ${i + 1}`;
           if (!st.text) bad.push(`${where} has no text`);
+          if (st.carry != null && (typeof st.carry !== "string" || [...st.carry].length > MAX_CARRY)) bad.push(`${where}: carry must be a string of at most ${MAX_CARRY} characters (it labels a token on an arrow), got ${JSON.stringify(st.carry)}`);
           if (!(st.path ?? []).length) bad.push(`${where} has no path (the boxes it lights up)`);
           for (const id of st.path ?? []) if (!nodes.has(id)) bad.push(`${where} names unknown node ${id}`);
           for (let k = 1; k < (st.path ?? []).length; k++) if (!linked(st.path[k - 1], st.path[k])) bad.push(`${where}: no edge between ${st.path[k - 1]} and ${st.path[k]}`);
@@ -86,6 +91,7 @@ export function validate(spec) {
   }
   // preset and inject keys must be sliders, or the preset silently does nothing
   for (const s of secs) {
+    for (const pr of s.presets ?? []) if (pr.expect != null && !(typeof pr.expect === "string" && pr.expect.startsWith("="))) bad.push(`preset "${pr.label}": expect must be an expression string starting with "=", got ${JSON.stringify(pr.expect)}`);
     for (const pr of s.presets ?? []) for (const k of Object.keys(pr.set ?? {})) if (!params.has(k)) bad.push(`preset "${pr.label}" sets ${k}, which is not a slider`);
     for (const f of s.type === "failures" ? s.items ?? [] : []) for (const k of Object.keys(f.inject ?? {})) if (!params.has(k)) bad.push(`failure "${f.what}" injects ${k}, which is not a slider`);
   }
@@ -100,6 +106,21 @@ export function validate(spec) {
   };
   for (const id of rowExpr.keys()) { const c = loop(id); if (c) { bad.push(`estimation rows depend on each other in a loop at ${c}`); break; } }
   return bad;
+}
+
+// Things that do not stop the build but make the page worse. Returned as messages.
+export function lint(spec) {
+  const warn = [];
+  for (const s of spec.sections ?? []) {
+    if (s.type !== "arch") continue;
+    for (const f of s.flows ?? []) for (const [i, st] of (f.steps ?? []).entries()) {
+      if ((st.path ?? []).length >= 2 && !st.carry) {
+        const fallback = String(st.text ?? "").replace(/\*\*/g, "").split(/\s+/).filter(Boolean).slice(0, 3).join(" ");
+        warn.push(`flow "${f.label}" step ${i + 1} has no carry; using "${fallback}"`);
+      }
+    }
+  }
+  return warn;
 }
 
 function checkChart(s, params, bad) {

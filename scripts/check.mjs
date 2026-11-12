@@ -4,7 +4,8 @@
 //  - the page builds with no script errors and no bad expressions
 //  - every preset is clicked, its numbers are printed and checked (errors, NaN, impossible
 //    failure rates, an unhealthy baseline, presets that change nothing)
-//  - every walkthrough step is played; every chart line must be drawable
+//  - every preset's `expect` must hold; nothing may show "n/a"; no label may overflow its box
+//  - every walkthrough step is played, shows a token and is pictured; every chart line must be drawable
 //  - with --shots, screenshots (full page in both themes, and each section) are written
 import { spawn, execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync, mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
@@ -79,6 +80,8 @@ try {
   await new Promise((r, j) => { ws.onopen = r; ws.onerror = () => j(new Error("could not open the DevTools socket")); });
   ws.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); } };
   await send("Page.enable");
+  // Test hook (tests/check.test.mjs): the runtime drops one picture arrow when this is set before load.
+  if (process.env.SYSDESIGN_BREAK_PICTURE) await send("Page.addScriptToEvaluateOnNewDocument", { source: "window.__sysdesign_test={breakPicture:true}" });
   await send("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 600 });
   await send("Page.navigate", { url: pathToFileURL(resolve(page)).href });
   for (let i = 0; i < 40 && !(await ev("document.body && document.body.dataset.ready")); i++) await sleep(150);
@@ -94,10 +97,21 @@ try {
   const over = await ev(`document.documentElement.scrollWidth - window.innerWidth`);
   if (over > 2) { say(`FAIL horizontal overflow of ${over}px at width ${width}`); failed = true; } else say("ok   no horizontal overflow");
 
+  // labels: text must stay inside the box, lane, token or picture that holds it
+  const boxOver = await ev(`(()=>{const bad=[];
+    document.querySelectorAll('.sim .node').forEach(g=>{const l=g.querySelector('.nl'),b=g.querySelector('.box');if(!l||!b)return;const a=l.getBBox(),c=b.getBBox();if(a.x+a.width>c.x+c.width+0.5||a.x<c.x-0.5)bad.push(l.textContent)});
+    document.querySelectorAll('.sim .lanel').forEach(t=>{const r=t.previousSibling,a=t.getBBox(),c=r.getBBox();if(a.x+a.width>c.x+c.width+0.5)bad.push(t.textContent.trim())});
+    return bad})()`);
+  for (const t of boxOver ?? []) { say(`FAIL label "${t}" overflows its box`); failed = true; }
+  const naCount = () => ev(`document.querySelectorAll('[data-na]').length`);
+  const naBase = await naCount();
+  if (naBase) { say(`FAIL ${naBase} value(s) show n/a`); failed = true; }
+
   // presets: click each one, print its numbers, and check them. A preset that breaks an
   // expression, shows NaN, or a failure rate outside 0..100% fails the check. The first preset
   // is the baseline and should be healthy; a preset that changes nothing gets a warning.
   const chips = await ev(`[...document.querySelectorAll('.sim .bar:not(.flows) .chip')].map(b=>b.textContent)`);
+  const expects = await ev(`(JSON.parse(document.getElementById('spec').textContent).sections.find(s=>s.type==='arch')||{presets:[]}).presets.map(p=>[p.label,p.expect||''])`);
   const budget = await ev(`(JSON.parse(document.getElementById('spec').textContent).sections.find(s=>s.type==='arch')||{}).latencyBudget||0`);
   if (chips?.length) {
     say("\npresets (offered load, failed requests, avg latency, busiest part, custom metrics):");
@@ -110,6 +124,10 @@ try {
       say(`  ${chips[i].padEnd(32)} ${row.join(" | ")}`);
       const errs = await pageErrors();
       if (errs) { say(`FAIL preset "${chips[i]}" breaks an expression: ${errs}`); failed = true; }
+      const want = (expects ?? []).find((x) => x[0] === chips[i])?.[1];
+      if (want && !(await ev(`!!window.__sysdesign.val(${JSON.stringify(want)})`))) { say(`FAIL preset "${chips[i]}" expect ${want} is false`); failed = true; }
+      const na = await naCount();
+      if (na > naBase) { say(`FAIL ${na} value(s) show n/a under preset "${chips[i]}"`); failed = true; }
       if (row.some((x) => /NaN|Infinity|undefined/.test(x))) { say(`FAIL preset "${chips[i]}" shows a value that is not a number`); failed = true; }
       if (sim && !(sim.err >= -1e-9 && sim.err <= 1 + 1e-9)) { say(`FAIL preset "${chips[i]}": failure rate ${(sim.err * 100).toFixed(1)}% is outside 0..100%. A cache's routes onward must carry only misses (see spec-format.md)`); failed = true; }
       if (i === 0 && sim) {
@@ -126,20 +144,41 @@ try {
   // walkthroughs: play every step of every flow; each step must light up at least one box
   const flows = await ev(`[...document.querySelectorAll('.sim .bar.flows .chip')].map(b=>b.textContent)`);
   if (flows?.length) say("");
+  const specFlows = await ev(`(JSON.parse(document.getElementById('spec').textContent).sections.find(s=>s.type==='arch')||{}).flows||[]`);
+  const picOn = await ev(`(JSON.parse(document.getElementById('spec').textContent).sections.find(s=>s.type==='arch')||{}).flowPicture!==false`);
   for (let i = 0; i < (flows ?? []).length; i++) {
-    const r = await ev(`(()=>{const b=document.querySelectorAll('.sim .bar.flows .chip')[${i}];b.click();const out=[];
-      for(let k=0;k<50;k++){const lit=document.querySelectorAll('.sim .node.hl').length,txt=document.querySelector('.walk .wtext').textContent;out.push(lit+':'+(txt?1:0));
+    const sf = specFlows[i]?.steps ?? [];
+    const hops = sf.reduce((n, st) => n + Math.max(0, (st.path ?? []).length - 1), 0);
+    const r = await ev(`(()=>{const b=document.querySelectorAll('.sim .bar.flows .chip')[${i}];b.click();const out=[],over=[];
+      const inside=(el,box)=>{const a=el.getBoundingClientRect();return a.left>=box.left-1&&a.right<=box.right+1&&a.top>=box.top-1&&a.bottom<=box.bottom+1};
+      const svg=document.querySelector('.sim .stage svg');
+      const pic={arrows:document.querySelectorAll('.fpic .fharrow').length,shown:!!document.querySelector('.fpic svg')&&getComputedStyle(document.querySelector('.fpic')).display!=='none',over:[]};
+      if(pic.shown){const sb=document.querySelector('.fpic svg').getBoundingClientRect();document.querySelectorAll('.fpic text').forEach(t=>{if(!inside(t,sb))pic.over.push(t.textContent)})}
+      for(let k=0;k<50;k++){const lit=document.querySelectorAll('.sim .node.hl').length,txt=document.querySelector('.walk .wtext').textContent;
+        const toks=document.querySelectorAll('.sim .tok').length;out.push(lit+':'+(txt?1:0)+':'+toks);
+        const sb=svg.getBoundingClientRect();document.querySelectorAll('.sim .tok .tokpill, .sim .tok .toklabel').forEach(t=>{if(!inside(t,sb))over.push(t.textContent||'pill')});
         const next=[...document.querySelectorAll('.walk .chip')].find(x=>x.textContent==='Next'||x.textContent==='Done');if(next.textContent==='Done'){next.click();break;}next.click();}
-      return out;})()`);
-    const dark = r.filter((x) => x.startsWith("0:") || x.endsWith(":0")).length;
+      return {out,over,pic};})()`);
+    const dark = r.out.filter((x) => x.startsWith("0:") || x.split(":")[1] === "0").length;
     const werr = await pageErrors();
     if (werr) { say(`FAIL walkthrough "${flows[i]}" breaks something: ${werr}`); failed = true; }
-    if (dark) { say(`FAIL walkthrough "${flows[i]}": ${dark} of ${r.length} steps light nothing or have no text`); failed = true; }
-    else say(`ok   walkthrough "${flows[i]}": ${r.length} steps`);
+    if (dark) { say(`FAIL walkthrough "${flows[i]}": ${dark} of ${r.out.length} steps light nothing or have no text`); failed = true; }
+    sf.forEach((st, k) => { if ((st.path ?? []).length >= 2 && r.out[k] && r.out[k].split(":")[2] === "0") { say(`FAIL walkthrough "${flows[i]}" step ${k + 1} has no token`); failed = true; } });
+    for (const t of new Set(r.over)) { say(`FAIL label "${t}" overflows its box (token travelling in walkthrough "${flows[i]}")`); failed = true; }
+    if (picOn) {
+      if (!r.pic.shown) { say(`FAIL walkthrough "${flows[i]}" shows no picture`); failed = true; }
+      else {
+        if (r.pic.arrows !== hops) { say(`FAIL walkthrough "${flows[i]}" picture has ${r.pic.arrows} arrows for ${hops} hops`); failed = true; }
+        for (const t of new Set(r.pic.over)) { say(`FAIL label "${t}" overflows its box (picture of walkthrough "${flows[i]}")`); failed = true; }
+      }
+    }
+    if (!dark) say(`ok   walkthrough "${flows[i]}": ${r.out.length} steps, ${picOn ? hops : 0} hops pictured`);
   }
   // click every node once to exercise the detail panel
   const clickable = await ev(`document.querySelectorAll('.sim .node, .cls, .stn').length`);
   say(`\nok   ${clickable} interactive nodes present`);
+  const panelNa = await ev(`(()=>{let n=0;document.querySelectorAll('.sim .node').forEach(g=>{g.dispatchEvent(new MouseEvent('click',{bubbles:true}));n+=document.querySelectorAll('.sim .detail [data-na]').length;g.dispatchEvent(new MouseEvent('click',{bubbles:true}))});return n})()`);
+  if (panelNa) { say(`FAIL ${panelNa} value(s) show n/a in the click panel`); failed = true; }
 
   // charts: every line must be drawn from finite numbers; print each chart's live readout
   const charts = await ev(`[...document.querySelectorAll('.viz')].map(c=>({t:c.closest('section').querySelector('h2').lastChild.textContent,

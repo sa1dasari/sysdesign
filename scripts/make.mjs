@@ -20,7 +20,7 @@ if (!args.includes("--no-check")) {
   const pass = ["--shots", "--width"].flatMap((k) => (args.includes(k) ? [k, args[args.indexOf(k) + 1]] : []));
   const here = dirname(fileURLToPath(import.meta.url));
   const r = spawnSync(process.execPath, [join(here, "check.mjs"), page, ...pass], { stdio: "inherit" });
-  if (r.status === 2) console.log("skip   checks: no Chrome found (set CHROME=/path/to/chrome to enable them)");
+  if (r.status === 2) console.log(process.env.CHROME ? `skip   checks: CHROME=${process.env.CHROME} does not exist` : "skip   checks: no Chrome, Chromium or Edge found (set CHROME=/path/to/chrome)");
   else failed = r.status !== 0;
 }
 

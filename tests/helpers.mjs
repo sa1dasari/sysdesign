@@ -33,11 +33,11 @@ export async function openPage(htmlPath, { width = 1280, reducedMotion = false }
   };
 }
 
-export function runCheck(htmlPath, args = []) {
+export function runCheck(htmlPath, args = [], env = {}) {
   const r = spawnSync(process.execPath, [join(root, "scripts/check.mjs"), htmlPath, ...args], {
     encoding: "utf8",
     timeout: 60000,
-    env: { ...process.env, CHROME: process.env.CHROME || chromium.executablePath() },
+    env: { ...process.env, CHROME: process.env.CHROME || chromium.executablePath(), ...env },
   });
   return { code: r.status ?? 1, out: (r.stdout || "") + (r.stderr || "") };
 }

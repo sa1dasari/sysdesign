@@ -224,3 +224,19 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
 .toklabel{fill:#fff;font:600 11px var(--mono);pointer-events:none}
 
 :root[data-theme=dark] .toklabel{fill:var(--bg)}
+
+.fpic{overflow-x:auto;padding:8px;border-top:1px solid var(--line);background:var(--panel)}
+.fpic svg{display:block;max-width:none}
+.fpic .fllabel{fill:var(--ink);font:600 12px var(--sans)}
+.fpic .flline{stroke:var(--line);stroke-dasharray:4 4}
+.fpic .fharrow{stroke:var(--ink);stroke-width:1.6;fill:none}
+.fpic .fhdot{fill:var(--ink)}
+.fpic .fhlabel{fill:var(--ink);font:12px var(--mono)}
+.fpic .fhband{fill:var(--accent);opacity:0;pointer-events:all;fill-opacity:0}
+.fpic .fh{cursor:pointer}
+.fpic .fh.done{opacity:.45}
+.fpic .fh.todo{opacity:.2}
+.fpic .fh.cur .fhband{opacity:.16;fill-opacity:1}
+.fpic .fh.cur .fharrow{stroke:var(--accent);stroke-width:2.6}
+.fpic .fh.cur .fhdot{fill:var(--accent)}
+.fpic .fh.cur .fhlabel{fill:var(--accent);font-weight:600}

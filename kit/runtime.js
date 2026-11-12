@@ -531,18 +531,73 @@
     if (!reduce) requestAnimationFrame(frame);
     var stage = h("div", { class: "stage" }, svg);
     // ----- walkthroughs: step through how a request or an event moves through the system -----
-    var flowBar = null, walk = null;
+    var flowBar = null, walk = null, fpic = null;
     if ((s.flows || []).length) {
       var flowBtns = [], cur = null, step = 0, wText = h("div", { class: "wtext" }), wCount = h("span", { class: "wcount" });
       var back = h("button", { class: "chip", onclick: function () { if (step > 0) { step--; show(); } } }, "Back");
       var next = h("button", { class: "chip", onclick: function () { if (step < cur.steps.length - 1) { step++; show(); } else stopWalk(); } }, "Next");
+      fpic = h("div", { class: "fpic", style: "display:none" }); var fhs = [];
       walk = h("div", { class: "walk", style: "display:none" }, h("div", { class: "wctl" }, wCount, back, next, h("button", { class: "chip", onclick: function () { stopWalk(); } }, "Exit")), wText);
       function edgeBetween(a, b) {
         for (var k = 0; k < s.edges.length; k++) { var e = s.edges[k]; if ((e.from === a && e.to === b) || (e.from === b && e.to === a)) return k; }
         return -1;
       }
       function carryOf(st) { return st.carry || String(st.text || "").replace(/\*\*/g, "").split(/\s+/).filter(Boolean).slice(0, 3).join(" "); }
-      function show() {
+      // ----- the walkthrough as one sequence picture: a lifeline per box, an arrow per hop -----
+      var FL_GAP = 130, FL_TOP = 78, FL_ROW = 46;
+      function plain(t) { return String(t || "").replace(/\*\*/g, ""); }
+      function flowPicture(flow) {
+        var ids = [], rows = [];
+        flow.steps.forEach(function (st, i) {
+          var path = st.path || [];
+          path.forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+          if (path.length === 1) rows.push({ i: i, a: path[0], b: path[0], note: 1 });
+          for (var j = 1; j < path.length; j++) rows.push({ i: i, a: path[j - 1], b: path[j] });
+        });
+        var W = Math.max(ids.length, 1) * FL_GAP, H = FL_TOP + rows.length * FL_ROW + 12;
+        var x = function (id) { return FL_GAP / 2 + ids.indexOf(id) * FL_GAP; };
+        var g = h("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "img", "aria-label": flow.steps.map(function (st) { return plain(st.text); }).join(" Then ") });
+        g.appendChild(h("defs", {}, h("marker", { id: "fparrow", viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, h("path", { d: "M0,0 L10,5 L0,10 z", fill: "context-stroke" }))));
+        ids.forEach(function (id) {
+          var n = (s.nodes || []).filter(function (q) { return q.id === id; })[0] || { id: id, label: id }, cx = x(id);
+          var fl = h("g", { class: "fl", "data-node": id });
+          fl.appendChild(h("use", { href: "#ico-" + iconFor(n), x: cx - 15, y: 8, width: 30, height: 30, "aria-hidden": "true" }));
+          fl.appendChild(h("text", { class: "fllabel", x: cx, y: 54, "text-anchor": "middle" }, n.label || id));
+          fl.appendChild(h("line", { class: "flline", x1: cx, y1: 62, x2: cx, y2: H - 4 }));
+          g.appendChild(fl);
+        });
+        fhs = [];
+        rows.forEach(function (r, k) {
+          var y = FL_TOP + 14 + k * FL_ROW, st = flow.steps[r.i], lab = (r.i + 1) + " \u00b7 " + carryOf(st);
+          var el = h("g", { class: "fh" + (r.note ? " note" : ""), "data-step": r.i, onclick: function () { show(r.i); } });
+          el.appendChild(h("rect", { class: "fhband", x: Math.min(x(r.a), x(r.b)) - 14, y: y - 22, width: Math.abs(x(r.a) - x(r.b)) + 28 + (r.note ? 90 : 0), height: FL_ROW - 6, rx: 6 }));
+          if (r.note) {
+            el.appendChild(h("circle", { class: "fhdot", cx: x(r.a), cy: y, r: 4 }));
+            el.appendChild(h("text", { class: "fhlabel", x: x(r.a) + 10, y: y + 4 }, lab));
+          } else {
+            var dir = x(r.b) >= x(r.a) ? 1 : -1;
+            el.appendChild(h("line", { class: "fharrow", x1: x(r.a) + dir * 3, y1: y, x2: x(r.b) - dir * 3, y2: y, "marker-end": "url(#fparrow)" }));
+            el.appendChild(h("text", { class: "fhlabel", x: (x(r.a) + x(r.b)) / 2, y: y - 7, "text-anchor": "middle" }, lab));
+          }
+          g.appendChild(el); fhs.push(el);
+        });
+        fpic.innerHTML = ""; fpic.appendChild(g);
+      }
+      function paintPicture() {
+        if (s.flowPicture === false) { fpic.style.display = "none"; return; }
+        fpic.style.display = "";
+        fhs.forEach(function (el) {
+          var i = +el.getAttribute("data-step");
+          el.setAttribute("class", "fh" + (el.classList.contains("note") ? " note" : "") + " " + (i < step ? "done" : i === step ? "cur" : "todo"));
+        });
+        var c = fpic.querySelector(".fh.cur");
+        if (c && fpic.scrollWidth > fpic.clientWidth) {
+          var fr = fpic.getBoundingClientRect(), b = c.getBoundingClientRect();
+          fpic.scrollTo({ left: fpic.scrollLeft + (b.left + b.right) / 2 - (fr.left + fr.width / 2), behavior: reduce ? "auto" : "smooth" });
+        }
+      }
+      function show(i) {
+        if (i != null) step = i;
         var st = cur.steps[step], path = st.path || [], now = performance.now();
         hlNodes = {}; hlEdges = {}; clearTokens();
         path.forEach(function (id, i) { hlNodes[id] = 1; if (i) { var k = edgeBetween(path[i - 1], id); if (k >= 0) { hlEdges[k] = 1; addToken(k, path[i - 1], id, carryOf(st), now); } } });
@@ -552,6 +607,7 @@
         back.disabled = step === 0; next.textContent = step === cur.steps.length - 1 ? "Done" : "Next";
         walk.style.display = "";
         paintSel();
+        paintPicture();
         // on a narrow screen the diagram scrolls sideways: bring the lit boxes into view
         var lit = [].slice.call(svg.querySelectorAll(".node.hl"));
         if (lit.length && stage.scrollWidth > stage.clientWidth) {
@@ -561,17 +617,17 @@
         }
       }
       function stopWalk() {
-        cur = null; hlNodes = {}; hlEdges = {}; clearTokens(); svg.removeAttribute("class"); walk.style.display = "none";
+        cur = null; hlNodes = {}; hlEdges = {}; clearTokens(); svg.removeAttribute("class"); walk.style.display = "none"; fpic.style.display = "none";
         flowBtns.forEach(function (b) { b.classList.remove("on"); }); paintSel();
       }
       flowBar = h("div", { class: "bar flows" }, h("span", { class: "barl" }, "How it works:"));
       s.flows.forEach(function (f) {
-        var b = h("button", { class: "chip", onclick: function () { cur = f; step = 0; flowBtns.forEach(function (x) { x.classList.toggle("on", x === b); }); show(); } }, f.label);
+        var b = h("button", { class: "chip", onclick: function () { cur = f; step = 0; flowPicture(f); flowBtns.forEach(function (x) { x.classList.toggle("on", x === b); }); show(); } }, f.label);
         flowBtns.push(b); flowBar.appendChild(b);
       });
     }
     if (presetBar.childNodes.length) presetBar.insertBefore(h("span", { class: "barl" }, "Try:"), presetBar.firstChild);
-    return [paras(s.body || []), h("div", { class: "card sim" }, flowBar, presetBar.childNodes.length ? presetBar : null, stage, walk, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
+    return [paras(s.body || []), h("div", { class: "card sim" }, flowBar, presetBar.childNodes.length ? presetBar : null, stage, walk, fpic, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
   };
 
   // ----- chart: a quantity as a curve -----

@@ -1,14 +1,14 @@
 # HLD pages
 
-Section order for a learner (the default). For interview prep, move `estimation`, `api` and `data` up after `requirements`. Cut a section only if it truly has nothing to say. See `examples/netflix-recommendations/`.
+Section order for a learner (the default). For interview prep, move `estimation`, `api` and `data` up after `requirements`. Cut a section only if it truly has nothing to say.
 
 1. **text** "The big picture": three short paragraphs. What the system does for the user, the one idea that shapes it, and for a real product a link to its source.
 2. **requirements** (optional for a learner): functional, non-functional with numbers (latency, freshness), out of scope.
 3. **arch**, the centrepiece:
-   - 6 to 12 nodes, each with `role`, `why`, `scale`, `fails` in plain words.
+   - 6 to 10 nodes, each with `role`, `why`, `scale`, `fails` in plain words.
    - Lanes (`groups`) for the layers or paths the design is built from (read path and write path; online, nearline, offline), with `col` and `row` on every node so each lane is a clean band.
-   - 2 to 4 walkthroughs (`flows`): the main request, the main write or event, and the background or failure path. One or two sentences per step, defining each term the first time.
-   - 4 to 6 presets named for what a user would notice, each with a note saying what to watch. 3 to 5 controls.
+   - 2 or 3 walkthroughs (`flows`): the main request, the main write or event, and the background or failure path. One or two sentences per step, defining each term the first time. Every step that moves something gets a `carry`, a short label for what moves (at most 16 characters).
+   - 3 or 4 presets named for what a user would notice, each with a note saying what to watch, and an `expect` that encodes the note (all but the first). 2 or 3 controls.
    - One or two custom `metrics` in user terms (freshness, what the user sees), next to latency and errors.
 4. **chart** (optional): one curve that sweeps the input the force depends on and reruns the simulator at each point. Latency against peak traffic is the default.
 5. **patterns** or **tradeoffs**: the two or three decisions that define the design, each with a `pick` and a reason tied to a preset.

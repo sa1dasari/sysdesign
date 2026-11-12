@@ -4,7 +4,7 @@ A Claude Code skill that explains a system design topic as a live page you can p
 
 Ask about any topic and get one self-contained HTML file. Claude works out which views the topic needs and puts them on one page:
 
-- **System view (HLD)**, when the topic runs on many machines: an architecture diagram in labelled lanes, walkthroughs that light up how a request or an event moves step by step, and changes you can try ("turn off nearline", "a celebrity posts") while the page shows what users would notice. Click a box to see why it exists. Capacity math that recomputes as you drag is there for going deeper.
+- **System view (HLD)**, when the topic runs on many machines: an architecture diagram in labelled lanes, walkthroughs that light up how a request or an event moves step by step, and changes you can try ("turn off nearline", "a celebrity posts") while the page shows what users would notice. Click a box to see why it exists. Boxes have icons, a labelled token moves along each arrow as you step through, and a picture of the whole walkthrough sits under the diagram. Capacity math that recomputes as you drag is there for going deeper.
 - **Object view (LLD)**, when there is code worth designing: a class diagram, a sequence diagram you can step through, a state machine that enforces its own transition table, and a scenario produced by running the real code shown beside it.
 - **Mechanism view (concept)**, when an algorithm or protocol is the point: live charts that put the naive approach next to the real one, measured by running a reference implementation.
 
@@ -26,8 +26,23 @@ Rebuild, check and open one with `node scripts/make.mjs examples/news-feed/spec.
 
 ## Install
 
+As a Claude Code plugin (recommended, gets updates):
+
+```text
+/plugin install sysdesign --marketplace sa1dasari/sysdesign
+```
+
+On older Claude Code versions, add the marketplace first, then install:
+
+```text
+/plugin marketplace add sa1dasari/sysdesign
+/plugin install sysdesign@sysdesign-marketplace
+```
+
+Or as a personal skill, by cloning:
+
 ```sh
-git clone <this repo> ~/.claude/skills/sysdesign
+git clone https://github.com/sa1dasari/sysdesign ~/.claude/skills/sysdesign
 ```
 
 Then in Claude Code:
@@ -48,5 +63,7 @@ Needs Node 20.10+. Chrome or Chromium is used by `scripts/check.mjs` (found on P
 `SKILL.md` tells Claude how to find the one force that shapes a design, explain it to a learner, and fill a spec (`references/spec-format.md` lists every field). `scripts/make.mjs` does the rest in one command: `build.mjs` validates the spec and inlines `kit/runtime.js` and `kit/style.css` into a single page, `check.mjs` opens it in headless Chrome, clicks every preset and walkthrough step and prints the resulting numbers, and then the page opens in your default browser. On a machine with no display it prints the file path instead.
 
 The simulator is a steady-state fluid model with M/M/1-shaped latency. It shows which tier saturates first and what users feel. It is not a production performance predictor.
+
+`node --test` runs the tests in `tests/`; they need Playwright.
 
 MIT licensed.

@@ -1,22 +1,20 @@
 # Checking the page
 
-`node scripts/make.mjs spec.mjs` builds the page and runs these checks. Add `--shots dir` for screenshots when the output reports a layout problem. The page is not done until each of these holds.
+`node "${CLAUDE_SKILL_DIR}/scripts/make.mjs" <spec>` builds the page and checks it. Read only this file when the output shows a problem you cannot place.
 
-## Output of the script
-- `page built, no script errors`. If there are errors, they name the bad expression or section.
-- `no horizontal overflow` at 1280 wide. Also run with `--width 390` and read the phone screenshot.
-- **The preset table.** For each preset, compare the numbers to its `note`. A note that promises "latency climbs" must be matched by the table. This is the most important check: it is how you catch a model that does not show the idea.
-- The baseline row (the first preset): failed requests 0%, busiest tier under about 75%.
-- One `walkthrough` line per flow, with no FAIL. Read each step's text once in order: it should tell the story of one request or event, defining every term the first time.
-- One `chart` line per chart, with no FAIL. The marker value is the slider's current value, and the legend readout must equal the matching estimation row.
+## What the output means
 
-## Screenshots to read
-- `full-light.png` and `full-dark.png`: layout, contrast, anything cut off.
-- The `arch` section: no label overflows its box, edges do not cross nodes, metrics do not wrap awkwardly.
-- LLD diagrams: no overlapping labels, arrows do not pass through boxes, text fits.
-- Charts: end labels do not overlap each other or a line, and the curve's shape matches its note. Hover a few points and compare to the prose.
+- **`FAIL` lines must be fixed.** They name the spec problem, the bad expression, the preset that breaks something, a failure rate outside 0 to 100%, a walkthrough step that lights nothing, or a chart line with nothing to draw.
+- **`WARN` lines should be fixed.** An unhealthy baseline (failures, a part over 80% busy, latency over budget) means the defaults need resizing; use the recipe in `spec-format.md`. A preset with the same numbers as another usually means it sets the wrong slider, or that its effect is not visible. Add a metric that shows it.
+- **The preset table is the most important part.** For each preset, compare its numbers with its `note`. If the note promises "pages slow down" and latency does not climb, fix the model or the note. Quote the numbers you see, not the ones you expected.
+- **`skip checks`** means no Chrome or Chromium was found. Do not install one. Check the preset notes against the model by reasoning, and tell the user the browser checks were skipped.
 
-## Content check
-- Pick three numbers from the prose and trace each to its expression. They must match.
-- Each tradeoff's `why` points at something the simulator shows.
-- No sentence the reader could not act on or explain back.
+## Content check, before delivering
+
+- Read each walkthrough's steps in order. They should tell the story of one request or event, defining every term the first time.
+- Pick three numbers in the prose and trace each to the model. They must match.
+- Each tradeoff's `why` should point at something a preset shows.
+
+## Screenshots, only for a layout problem
+
+`--shots <dir>` writes a full-page image in both themes and one image per section. Add `--width 390` to see a phone layout. Look only at the section with the problem. Check that labels fit their boxes, arrows do not run through boxes, and chart end labels do not overlap.

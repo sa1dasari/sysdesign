@@ -10,7 +10,7 @@
 
   // ---------- helpers ----------
   function h(tag, attrs) {
-    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan|clipPath)$/.test(tag);
+    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan|clipPath|symbol|use|ellipse)$/.test(tag);
     var el = svg ? document.createElementNS(SVG, tag) : document.createElement(tag);
     if (attrs) for (var k in attrs) {
       var v = attrs[k];
@@ -23,6 +23,45 @@
     for (var i = 2; i < arguments.length; i++) add(el, arguments[i]);
     return el;
   }
+  // ---------- icons ----------
+  // 24x24 pictograms. Classes (styled in style.css) carry the colours so both themes work:
+  // p = panel fill + ink stroke, k = solid ink, a = warm accent, g = green accent, n = stroke only.
+  var ICONS = {
+    phone: '<rect class="p" x="6" y="2" width="12" height="20" rx="2.5" stroke-width="1.6"/><rect class="m" x="8" y="5" width="8" height="12" rx="1" stroke-width="1.6"/><circle class="k" cx="12" cy="19.3" r="1" stroke-width="1.6"/>',
+    browser: '<rect class="p" x="2.5" y="4" width="19" height="16" rx="2" stroke-width="1.6"/><path class="n" d="M2.5 9h19" stroke-width="1.6"/><circle class="a" cx="5.5" cy="6.5" r=".9" stroke-width="1.6"/><circle class="g" cx="8.5" cy="6.5" r=".9" stroke-width="1.6"/>',
+    user: '<circle class="p" cx="12" cy="8" r="4" stroke-width="1.6"/><path class="p" d="M4 21c0-4.5 3.6-7 8-7s8 2.5 8 7z" stroke-width="1.6"/>',
+    server: '<rect class="p" x="3" y="3" width="18" height="7" rx="1.5" stroke-width="1.6"/><rect class="p" x="3" y="14" width="18" height="7" rx="1.5" stroke-width="1.6"/><circle class="g" cx="7" cy="6.5" r="1.2" stroke-width="1.6"/><circle class="g" cx="7" cy="17.5" r="1.2" stroke-width="1.6"/>',
+    worker: '<path class="p" d="M12 2l2 3 3.5-1 .5 3.6 3.4 1.2-1.6 3.2 1.6 3.2-3.4 1.2-.5 3.6-3.5-1-2 3-2-3-3.5 1-.5-3.6-3.4-1.2L4.1 12 2.5 8.8l3.4-1.2L6.4 4l3.5 1z" stroke-width="1.4"/><circle class="m" cx="12" cy="12" r="3.4" stroke-width="1.4"/>',
+    queue: '<rect class="p" x="2" y="7" width="5" height="10" rx="1" stroke-width="1.6"/><rect class="p" x="9.5" y="7" width="5" height="10" rx="1" stroke-width="1.6"/><rect class="a" x="17" y="7" width="5" height="10" rx="1" stroke-width="1.6"/>',
+    cache: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" stroke-width="1.6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3" stroke-width="1.6"/><path class="a" d="M13 9l-4 6h3l-1 4 4-6h-3z" stroke-width=".8"/>',
+    database: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" stroke-width="1.6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3" stroke-width="1.6"/><path class="n" d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" stroke-width="1.2"/>',
+    storage: '<path class="p" d="M3 8l2-4h14l2 4v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" stroke-width="1.6"/><path class="n" d="M3 8h18" stroke-width="1.6"/><rect class="a" x="9" y="11" width="6" height="3" rx="1" stroke-width="1.6"/>',
+    batch: '<rect class="p" x="3" y="13" width="18" height="7" rx="1.5" stroke-width="1.6"/><rect class="p" x="3" y="8" width="18" height="4" rx="1.2" stroke-width="1.6"/><rect class="a" x="3" y="3.5" width="18" height="3.5" rx="1.2" stroke-width="1.6"/>',
+    lock: '<path class="n" d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3" stroke-width="1.6"/><rect class="p" x="4.5" y="11" width="15" height="10" rx="2" stroke-width="1.6"/><circle class="a" cx="12" cy="16" r="1.5" stroke-width="1.6"/>',
+    globe: '<circle class="p" cx="12" cy="12" r="9" stroke-width="1.6"/><ellipse class="n" cx="12" cy="12" rx="4" ry="9" stroke-width="1.2"/><path class="n" d="M3 12h18" stroke-width="1.2"/><circle class="g" cx="12" cy="12" r="1.4" stroke-width="1.6"/>',
+    search: '<circle class="p" cx="10.5" cy="10.5" r="6.5" stroke-width="1.6"/><path class="n" d="M15.5 15.5L21 21" stroke-width="2.4"/><circle class="a" cx="10.5" cy="10.5" r="2" stroke-width="1.6"/>',
+    mail: '<rect class="p" x="2.5" y="5" width="19" height="14" rx="2" stroke-width="1.6"/><path class="n" d="M3 7l9 7 9-7" stroke-width="1.6"/><circle class="a" cx="18.5" cy="6" r="2.6" stroke-width="1.6"/>'
+  };
+  function iconFor(n) {
+    if (n.icon && ICONS[n.icon]) return n.icon;
+    var k = n.kind || "";
+    if (k === "clients") return "phone";
+    if (k === "cache") return "cache";
+    if (k === "store") return "database";
+    if (k === "queue") return "queue";
+    if (k.indexOf("batch") >= 0) return "batch";
+    return "server";
+  }
+  function iconDefs() {
+    var d = h("defs");
+    Object.keys(ICONS).forEach(function (name) {
+      var sy = h("symbol", { id: "ico-" + name, viewBox: "0 0 24 24" });
+      sy.innerHTML = ICONS[name];
+      d.appendChild(sy);
+    });
+    return d;
+  }
+  var iconsPlaced = false, afterAttach = []; // afterAttach: work that needs the page laid out (text measuring)
   function add(el, c) {
     if (c == null || c === false) return;
     if (Array.isArray(c)) c.forEach(function (x) { add(el, x); });
@@ -57,15 +96,23 @@
   var cache = {};
   // Evaluate "=expr". Expressions read p (params), r (rows), m (simulation result) and,
   // inside a chart, x (the value on the horizontal axis).
-  function val(expr, extra, xv) {
+  function val(expr, extra, xv, keepNaN) {
     if (typeof expr !== "string" || expr.charAt(0) !== "=") return expr;
     var f = cache[expr];
     if (!f) {
       try { f = cache[expr] = new Function("p", "r", "m", "H", "x", "with(H){return (" + expr.slice(1) + ")}"); }
       catch (e) { fail("bad expression " + expr + ": " + e.message); f = cache[expr] = function () { return 0; }; }
     }
-    try { var v = f(S.p, S.r, extra || S.m, H, xv); return v == null || isNaN(v) && typeof v === "number" ? 0 : v; }
+    try { var v = f(S.p, S.r, extra || S.m, H, xv); return v == null || isNaN(v) && typeof v === "number" ? (keepNaN ? NaN : 0) : v; }
     catch (e) { fail("expression " + expr + ": " + e.message); return 0; }
+  }
+  // Like val(), but for numbers the reader sees: NaN or undefined stay NaN, so fmt shows "n/a".
+  // The simulator's own inputs keep val()'s 0 fallback.
+  function shownVal(expr, extra, xv) { return val(expr, extra, xv, true); }
+  // Put a formatted value in an element; a shown "n/a" is marked data-na so the checks can count it.
+  function put(el, text, shown) {
+    if (shown && text === "n/a") { el.textContent = ""; el.appendChild(h("span", { "data-na": "" }, text)); }
+    else el.textContent = text;
   }
   function fail(msg) { document.body.dataset.error = (document.body.dataset.error || "") + msg + " | "; }
   function fmt(v, f, unit) {
@@ -79,6 +126,8 @@
     else s = si(v);
     return unit && f !== "bytes" && f !== "ms" && f !== "pct" ? s + " " + unit : s;
   }
+  // For values the reader sees from a shownVal: NaN reads "n/a". Built-in metrics keep showing NaN so check.mjs catches it.
+  function fmtShown(v, f, unit) { return typeof v === "number" && isNaN(v) ? "n/a" : fmt(v, f, unit); }
   function si(v) {
     var a = Math.abs(v);
     if (a >= 1e12) return (v / 1e12).toFixed(2).replace(/\.?0+$/, "") + "T";
@@ -101,12 +150,36 @@
   var DEFAULTS = {};
   function onChange(fn) { listeners.push(fn); }
   function readsSim(row) { return typeof row.expr === "string" && /\bm\./.test(row.expr); }
-  // Rows that do not read the simulation are computed first, so the simulation can use them.
-  // Rows that read it are computed after, against that run's result (never a stale one).
+  // Rows are computed in dependency order, wherever they sit on the page. A row that reads the
+  // simulation (m), directly or through another row, is computed after the simulation runs;
+  // every other row before it, so the simulation can use them.
+  var PLAN = null;
+  function rowPlan() {
+    if (PLAN) return PLAN;
+    var by = {}, order = [], state = {}, sim = {};
+    (SPEC.sections || []).forEach(function (s) { (s.rows || []).forEach(function (row) { if (row.id) by[row.id] = row; }); });
+    function visit(row) {
+      if (state[row.id] === 2) return;
+      if (state[row.id] === 1) { fail("rows depend on each other in a loop at " + row.id); return; }
+      state[row.id] = 1;
+      var uses = readsSim(row), re = /\br\.(\w+)/g, mm, t = typeof row.expr === "string" ? row.expr : "";
+      while ((mm = re.exec(t))) if (by[mm[1]]) { visit(by[mm[1]]); if (sim[mm[1]]) uses = true; }
+      sim[row.id] = uses; state[row.id] = 2; order.push(row);
+    }
+    Object.keys(by).forEach(function (id) { visit(by[id]); });
+    return PLAN = { order: order, sim: sim };
+  }
+  // Does this expression depend on the simulation, directly or through a row?
+  function needsSim(expr) {
+    if (typeof expr !== "string") return false;
+    if (/\bm\./.test(expr)) return true;
+    var plan = rowPlan(), re = /\br\.(\w+)/g, mm;
+    while ((mm = re.exec(expr))) if (plan.sim[mm[1]]) return true;
+    return false;
+  }
   function computeRows(simPass, m) {
-    (SPEC.sections || []).forEach(function (s) {
-      (s.rows || []).forEach(function (row) { if (row.id && readsSim(row) === simPass) S.r[row.id] = val(row.expr, m); });
-    });
+    var plan = rowPlan();
+    plan.order.forEach(function (row) { if (!!plan.sim[row.id] === simPass) S.r[row.id] = val(row.expr, m); });
   }
   function archSection() { return (SPEC.sections || []).filter(function (s) { return s.type === "arch"; })[0]; }
   function recompute() {
@@ -145,7 +218,7 @@
       inn[id].forEach(function (e) { inflow += flow[e._k] || 0; });
       var inst = n.instances != null ? Math.max(0, val(n.instances)) : 1;
       var cap = n.cap != null ? val(n.cap) : Infinity;
-      var total = inst * cap;
+      var total = inst === 0 ? 0 : inst * cap; // a dead node has no capacity, even if its cap is unlimited
       var acc = Math.min(inflow, total);
       var rho = total === Infinity ? 0 : total > 0 ? inflow / total : (inflow > 0 ? 9 : 0);
       var svc = n.ms != null ? val(n.ms) : 0;
@@ -158,7 +231,8 @@
       var outs = out[id], eq = outs.filter(function (e) { return e.share == null && !e.call && !e.async; }).length;
       outs.forEach(function (e) {
         var sh = e.share != null ? val(e.share) : (e.call || e.async) ? 1 : 1 / Math.max(1, eq);
-        if (e.miss) sh *= (1 - r.hit);
+        // a cache answers hits itself: every route onward carries only the misses
+        if (e.miss || (r.hit && !e.call && !e.async)) sh *= (1 - r.hit);
         var mult = e.mult != null ? val(e.mult) : 1;
         flow[e._k] = acc * sh * mult;
         res.edges[e._k] = { flow: flow[e._k], share: sh, mult: mult };
@@ -175,14 +249,15 @@
         var sh = res.edges[e._k].share, c = path(e.to);
         s += sh * c.s; l += sh * c.l; cover += sh;
       });
-      var hitShare = r.hit && alts.some(function (e) { return e.miss; }) ? r.hit : 0;
+      var hitShare = r.hit && alts.length ? r.hit : 0;
       s += hitShare; cover += hitShare;
       if (!alts.length) s = 1; else if (cover < 1) s += 1 - cover; // traffic with nowhere to go ends here, successfully
       calls.forEach(function (e) { // calls every request may make: all must succeed, latencies add
         var sh = res.edges[e._k].share, c = path(e.to);
         s *= (1 - sh) + sh * c.s; l += sh * c.l;
       });
-      return memo[id] = { s: s * r.accFrac, l: l };
+      // an overloaded queue makes requests wait (its backlog grows), it does not drop them
+      return memo[id] = { s: clamp(s * (by[id].kind === "queue" ? 1 : r.accFrac), 0, 1), l: l };
     }
     var srcs = nodes.filter(function (n) { return n.rps != null; }), tot = 0, ok = 0, lat = 0;
     srcs.forEach(function (n) {
@@ -209,7 +284,8 @@
 
   // One labelled slider bound to param c.id. It follows the param when a preset changes it.
   function slider(c, defStep) {
-    var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || defStep, "aria-label": c.label });
+    var whole = [c.value, c.min, c.max].every(function (v) { return v == null || v % 1 === 0; });
+    var o = h("output"), inp = h("input", { type: "range", min: c.min, max: c.max, step: c.step || (whole ? defStep : "any"), "aria-label": c.label });
     if (c.log) { inp.min = Math.log10(c.min); inp.max = Math.log10(c.max); inp.step = "any"; }
     inp.value = c.log ? Math.log10(c.value) : c.value;
     inp.addEventListener("input", function () { setParam(c.id, c.log ? Math.pow(10, +inp.value) : +inp.value); });
@@ -227,7 +303,7 @@
     var tb = h("table", { class: "rows" });
     (s.rows || []).forEach(function (row) {
       var td = h("td");
-      onChange(function () { td.textContent = fmt(val(row.expr), row.fmt, row.unit); });
+      onChange(function () { put(td, fmtShown(shownVal(row.expr), row.fmt, row.unit), true); });
       tb.appendChild(h("tr", null, h("td", null, row.label, row.why ? h("span", { class: "why", html: md(row.why) }) : null), td));
     });
     return [paras(s.body || []), h("div", { class: "est" }, inputs, h("div", { class: "card" }, h("h3", null, "Derived"), tb))];
@@ -266,7 +342,7 @@
     return [h("div", { class: "grid g2" }, (s.items || []).map(function (f) {
       return h("div", { class: "card fail" }, h("h4", null, f.what),
         h("dl", null, h("dt", null, "What happens"), h("dd", { html: md(f.effect) }), h("dt", null, "Mitigation"), h("dd", { html: md(f.mitigation) })),
-        f.inject ? h("button", { class: "chip", style: "margin-top:12px", onclick: function () { applyPreset(f.inject); location.hash = "#" + (SPEC.sections.filter(function (x) { return x.type === "arch"; })[0] || {}).id; } }, "Inject in the simulation") : null);
+        f.inject && archSection() ? h("button", { class: "chip", style: "margin-top:12px", onclick: function () { applyPreset(f.inject); location.hash = "#" + (SPEC.sections.filter(function (x) { return x.type === "arch"; })[0] || {}).id; } }, "Inject in the simulation") : null);
     }))];
   };
 
@@ -292,7 +368,7 @@
   builders.arch = function (s) {
     // Layout: columns follow the flow (depth from the sources) unless a node sets `col`;
     // rows stack within a column unless a node sets `row`. `group` puts nodes in a labelled lane.
-    var groups = s.groups || [], NW = 152, NH = 60, GX = 72, GY = groups.length ? 62 : 30, PAD = 20, TOP = groups.length ? 40 : PAD;
+    var groups = s.groups || [], NW = 152, NH = 68, GX = 72, GY = groups.length ? 62 : 30, PAD = 20, TOP = groups.length ? 40 : PAD;
     var nodes = s.nodes, by = {}, depth = {};
     nodes.forEach(function (n) { by[n.id] = n; depth[n.id] = 0; });
     for (var pass = 0; pass < nodes.length; pass++) s.edges.forEach(function (e) { depth[e.to] = Math.max(depth[e.to], depth[e.from] + 1); });
@@ -308,15 +384,17 @@
     var W = PAD, Ht = PAD;
     nodes.forEach(function (n) { W = Math.max(W, n._x + NW + PAD); Ht = Math.max(Ht, n._y + NH + PAD + (groups.length ? 14 : 0)); });
     var svg = h("svg", { viewBox: "0 0 " + W + " " + Ht, role: "img", "aria-label": s.title || "architecture" });
-    var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g");
-    [laneG, edgeG, dotG, nodeG].forEach(function (g) { svg.appendChild(g); });
+    var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g"), tokG = h("g");
+    if (!iconsPlaced) { svg.appendChild(iconDefs()); iconsPlaced = true; }
+    [laneG, edgeG, dotG, nodeG, tokG].forEach(function (g) { svg.appendChild(g); });
+    var laneJobs = [];
     groups.forEach(function (gr) {
       var mem = nodes.filter(function (n) { return n.group === gr.id; });
       if (!mem.length) return;
       var x0 = Math.min.apply(null, mem.map(function (n) { return n._x; })) - 14, y0 = Math.min.apply(null, mem.map(function (n) { return n._y; })) - 30;
       var x1 = Math.max.apply(null, mem.map(function (n) { return n._x + NW; })) + 14, y1 = Math.max.apply(null, mem.map(function (n) { return n._y + NH; })) + 12;
-      laneG.appendChild(h("rect", { class: "lane", x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }));
-      laneG.appendChild(h("text", { class: "lanel", x: x0 + 12, y: y0 + 18 }, gr.label, gr.note ? h("tspan", { class: "lanen" }, "  " + gr.note) : null));
+      var lr = h("rect", { class: "lane", x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }), lt = h("text", { class: "lanel", x: x0 + 12, y: y0 + 18 }, gr.label, gr.note ? h("tspan", { class: "lanen" }, "  " + gr.note) : null);
+      laneG.appendChild(lr); laneG.appendChild(lt); laneJobs.push({ rect: lr, text: lt, x0: x0 });
     });
     // Edges leave the side facing their target: right to left, left to right, or top to bottom.
     function route(a, b) {
@@ -340,16 +418,43 @@
       edgeG.appendChild(path); if (lab) edgeG.appendChild(lab);
       return { path: path, len: 0, dots: [], e: e, lab: lab };
     });
-    var nodeEls = {};
+    var nodeEls = {}, labelJobs = [];
     var selected = null, detail = h("dl", { class: "detail", style: "display:none" });
     nodes.forEach(function (n) {
-      var g = h("g", { class: "node", tabindex: 0, role: "button", "aria-label": n.label }), sub = h("text", { class: "s", x: n._x + 12, y: n._y + 41 }), ub = h("rect", { class: "ubar", x: n._x + 10, y: n._y + NH - 9, height: 3, width: 0, rx: 1.5 });
+      var g = h("g", { class: "node", tabindex: 0, role: "button", "aria-label": n.label }), sub = h("text", { class: "s", x: n._x + 12, y: n._y + 53 }), ub = h("rect", { class: "ubar", x: n._x + 10, y: n._y + NH - 9, height: 3, width: 0, rx: 1.5 });
       g.appendChild(h("rect", { class: "box", x: n._x, y: n._y, width: NW, height: NH, style: "--u:0" }));
-      g.appendChild(h("text", { x: n._x + 12, y: n._y + 23 }, n.label)); g.appendChild(sub); g.appendChild(ub);
+      g.appendChild(h("use", { class: "ico", href: "#ico-" + iconFor(n), x: n._x + 10, y: n._y + 9, width: 26, height: 26, "aria-hidden": "true" }));
+      var lx = n._x + 44, nl = h("text", { class: "nl", x: lx, y: n._y + 27 }, n.label);
+      g.appendChild(nl); g.appendChild(sub); g.appendChild(ub);
+      labelJobs.push({ el: nl, label: n.label, x: lx, y: n._y });
       var pick = function () { selected = selected === n.id ? null : n.id; paintDetail(); paintSel(); };
       g.addEventListener("click", pick); g.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } });
       nodeG.appendChild(g); nodeEls[n.id] = { g: g, sub: sub, ub: ub, box: g.firstChild };
     });
+    // Labels are measured once the SVG is in the page; one that overflows wraps to two 13px lines.
+    function fitLabels() {
+      // a lane is as wide as its boxes, or as its label when that is longer; the SVG grows to hold it
+      laneJobs.forEach(function (j) {
+        var need = j.text.getBBox().width + 24;
+        if (need > +j.rect.getAttribute("width")) j.rect.setAttribute("width", need);
+        var right = j.x0 + Math.max(need, +j.rect.getAttribute("width")) + 4;
+        if (right > W) { W = right; svg.setAttribute("viewBox", "0 0 " + W + " " + Ht); }
+      });
+      labelJobs.forEach(function (j) {
+        if (j.el.getComputedTextLength() <= NW - 54) return;
+        var words = j.label.split(" "), best = 1, bestGap = Infinity, mid = j.label.length / 2, pos = 0;
+        for (var i = 0; i < words.length - 1; i++) {
+          pos += words[i].length;
+          if (Math.abs(pos - mid) < bestGap) { bestGap = Math.abs(pos - mid); best = i + 1; }
+          pos += 1;
+        }
+        j.el.textContent = ""; j.el.setAttribute("class", "nl two");
+        [words.slice(0, best).join(" "), words.slice(best).join(" ")].forEach(function (line, k) {
+          j.el.appendChild(h("tspan", { x: j.x, y: j.y + 21 + k * 15 }, line));
+        });
+      });
+    }
+    afterAttach.push(fitLabels);
     var hlNodes = {}, hlEdges = {}; // what the current walkthrough step lights up
     function paintSel() {
       nodes.forEach(function (n) { nodeEls[n.id].g.setAttribute("class", "node" + (selected === n.id ? " sel" : "") + (hlNodes[n.id] ? " hl" : "") + (S.m && S.m.nodes[n.id].total === 0 ? " dead" : "")); });
@@ -360,19 +465,20 @@
       if (!selected) { detail.style.display = "none"; return; }
       var n = by[selected], r = S.m && S.m.nodes[selected]; detail.style.display = "grid";
       var rows = [["Role", n.role], ["Why it's here", n.why], ["Scales by", n.scale], ["Fails by", n.fails]];
-      if (r) rows.push(["Load now", si(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + si(r.total) + " capacity (" + Math.round(r.util * 100) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + si(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + si(r.growth) + "/s" : "")]);
-      rows.forEach(function (x) { if (x[1]) { detail.appendChild(h("dt", null, x[0])); detail.appendChild(h("dd", { html: md(x[1]) })); } });
+      var NA = "\uE000n/a\uE001", sn = function (v) { return typeof v === "number" && !isNaN(v) ? si(v) : NA; };
+      if (r) rows.push(["Load now", r.total === 0 ? "down, " + sn(r.inflow) + " req/s arriving with no capacity to take them" : sn(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + sn(r.total) + " capacity (" + (isNaN(r.util) ? NA : Math.round(r.util * 100)) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + sn(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + sn(r.growth) + "/s" : "")]);
+      rows.forEach(function (x) { if (x[1]) { detail.appendChild(h("dt", null, x[0])); detail.appendChild(h("dd", { html: md(x[1]).replace(/\uE000([^\uE001]*)\uE001/g, "<span data-na>$1</span>") })); } });
     }
     var metricEls = {}, metricBar = h("div", { class: "metrics" });
     var defs = [
-      { id: "rps", label: "Offered load", get: function (m) { return si(m.rps) + " req/s"; } },
+      { id: "rps", label: "Offered load", get: function (m) { return si(m.rps) + " " + (s.loadUnit || "req/s"); } },
       { id: "err", label: "Failed requests", get: function (m) { return fmt(m.err, "pct"); }, cls: function (m) { return m.err > 0.05 ? "bad" : m.err > 0.001 ? "warn" : ""; } },
       { id: "lat", label: "Avg latency", get: function (m) { return fmt(m.lat, "ms"); }, cls: function (m) { return s.latencyBudget && m.lat > s.latencyBudget ? "warn" : ""; } },
       // bottleneck is null when no node has a finite capacity
       { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { var r = m.bottleneck && m.nodes[m.bottleneck]; return !r ? "n/a" : r.total === 0 ? "down" : Math.round(r.util * 100) + "%"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
     ];
     (s.metrics || []).forEach(function (x, i) {
-      defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); },
+      defs.push({ id: "x" + i, label: x.label, shown: true, get: function (m) { return fmtShown(shownVal(x.expr, m), x.fmt, x.unit); },
         cls: function (m) { return x.bad && val(x.bad, m) ? "bad" : x.warn && val(x.warn, m) ? "warn" : ""; } });
     });
     defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });
@@ -393,7 +499,7 @@
       var m = S.m; if (!m) return;
       nodes.forEach(function (n) {
         var r = m.nodes[n.id], el = nodeEls[n.id];
-        el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util * 0.35, 0, 0.9));
+        el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util < 0.75 ? 0 : r.util * 0.35, 0, 0.9));
         var txt = r.total === Infinity ? (n.kind || "") : r.total === 0 ? "DOWN" : r.inst + "× " + si(r.cap) + "/s";
         if (n.hit != null) txt = Math.round(r.hit * 100) + "% hit";
         if (n.rps != null && r.total === Infinity) txt = si(r.inflow) + "/s";
@@ -402,7 +508,7 @@
         el.ub.setAttribute("width", w); el.ub.setAttribute("class", "ubar" + (r.util >= 1 ? " hot" : r.util > 0.8 ? " warn" : ""));
       });
       paintSel(); paintDetail();
-      defs.forEach(function (d) { var e = metricEls[d.id]; e.b.textContent = d.get(m); if (typeof d.label === "function") e.lab.textContent = d.label(m); e.box.className = "metric " + (d.cls ? d.cls(m) : ""); });
+      defs.forEach(function (d) { var e = metricEls[d.id]; put(e.b, d.get(m), d.shown); if (typeof d.label === "function") e.lab.textContent = d.label(m); e.box.className = "metric " + (d.cls ? d.cls(m) : ""); });
       // edge widths and particle counts follow flow
       edgeEls.forEach(function (E, k) {
         var f = m.edges[k] ? m.edges[k].flow : 0;
@@ -413,6 +519,22 @@
         if (!E.len) E.len = E.path.getTotalLength();
       });
     }
+    // ----- walkthrough tokens: a labelled dot that rides each lit arrow, in step path order -----
+    var toks = [], TOK_MS = 2400;
+    function placeToken(T, u) {
+      var L = T.E.len || (T.E.len = T.E.path.getTotalLength()), p = T.E.path.getPointAtLength((T.rev ? 1 - u : u) * L);
+      T.g.setAttribute("transform", "translate(" + p.x + " " + p.y + ")");
+    }
+    function clearTokens() { toks.forEach(function (T) { tokG.removeChild(T.g); }); toks = []; }
+    function addToken(k, from, to, label, now) {
+      var E = edgeEls[k], g = h("g", { class: "tok", "data-from": from, "data-to": to }), txt = h("text", { class: "toklabel", y: -14, "text-anchor": "middle" }, label);
+      var rect = h("rect", { class: "tokpill", rx: 8, ry: 8, height: 16, y: -22 });
+      g.appendChild(h("circle", { class: "tokdot", r: 5 })); g.appendChild(rect); g.appendChild(txt); tokG.appendChild(g);
+      var w = txt.getComputedTextLength() + 14;
+      rect.setAttribute("width", w); rect.setAttribute("x", -w / 2); txt.setAttribute("y", -10);
+      var T = { g: g, E: E, rev: E.e.from !== from, t0: now };
+      toks.push(T); placeToken(T, reduce ? 0.5 : 0);
+    }
     function frame(now) {
       var t = (now - t0) / 1000;
       edgeEls.forEach(function (E) {
@@ -421,32 +543,116 @@
         var speed = 110 / Math.max(E.len, 1);
         E.dots.forEach(function (d, i) { var u = ((t * speed) + i / E.dots.length) % 1, p = E.path.getPointAtLength(u * E.len); d.setAttribute("cx", p.x); d.setAttribute("cy", p.y); });
       });
+      toks.forEach(function (T) { placeToken(T, ((now - T.t0) / TOK_MS) % 1); });
       requestAnimationFrame(frame);
     }
     onChange(paint);
     if (!reduce) requestAnimationFrame(frame);
     var stage = h("div", { class: "stage" }, svg);
     // ----- walkthroughs: step through how a request or an event moves through the system -----
-    var flowBar = null, walk = null;
+    var flowBar = null, walk = null, fpic = null;
     if ((s.flows || []).length) {
       var flowBtns = [], cur = null, step = 0, wText = h("div", { class: "wtext" }), wCount = h("span", { class: "wcount" });
       var back = h("button", { class: "chip", onclick: function () { if (step > 0) { step--; show(); } } }, "Back");
       var next = h("button", { class: "chip", onclick: function () { if (step < cur.steps.length - 1) { step++; show(); } else stopWalk(); } }, "Next");
+      fpic = h("div", { class: "fpic", style: "display:none" }); var fhs = [];
       walk = h("div", { class: "walk", style: "display:none" }, h("div", { class: "wctl" }, wCount, back, next, h("button", { class: "chip", onclick: function () { stopWalk(); } }, "Exit")), wText);
       function edgeBetween(a, b) {
         for (var k = 0; k < s.edges.length; k++) { var e = s.edges[k]; if ((e.from === a && e.to === b) || (e.from === b && e.to === a)) return k; }
         return -1;
       }
-      function show() {
-        var st = cur.steps[step], path = st.path || [];
-        hlNodes = {}; hlEdges = {};
-        path.forEach(function (id, i) { hlNodes[id] = 1; if (i) { var k = edgeBetween(path[i - 1], id); if (k >= 0) hlEdges[k] = 1; } });
+      function carryOf(st) { return st.carry || String(st.text || "").replace(/\*\*/g, "").split(/\s+/).filter(Boolean).slice(0, 3).join(" "); }
+      // ----- the walkthrough as one sequence picture: a lifeline per box, an arrow per hop -----
+      var fpUid = 0, fpMk = "", FL_GAP = 130, FL_TOP = 78, FL_ROW = 46;
+      function plain(t) { return String(t || "").replace(/\*\*/g, ""); }
+      function flowPicture(flow) {
+        var mkId = fpMk = "fparrow" + (++fpUid), ids = [], rows = [];
+        flow.steps.forEach(function (st, i) {
+          var path = st.path || [];
+          path.forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+          if (path.length === 1) rows.push({ i: i, a: path[0], b: path[0], note: 1 });
+          for (var j = 1; j < path.length; j++) rows.push({ i: i, a: path[j - 1], b: path[j] });
+        });
+        var W = Math.max(ids.length, 1) * FL_GAP, H = FL_TOP + rows.length * FL_ROW + 12;
+        var broken = window.__sysdesign_test && window.__sysdesign_test.breakPicture, skipped = false;
+        var x = function (id) { return FL_GAP / 2 + ids.indexOf(id) * FL_GAP; };
+        var g = h("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "img", "aria-label": flow.steps.map(function (st) { return plain(st.text); }).join(" Then ") });
+        var mk = function (id, cls) { return h("marker", { id: id, viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, h("path", { class: cls, d: "M0,0 L10,5 L0,10 z" })); };
+        g.appendChild(h("defs", {}, mk(mkId, "fpmk"), mk(mkId + "c", "fpmk fpmkcur")));
+        var hdrJobs = [];
+        ids.forEach(function (id) {
+          var n = (s.nodes || []).filter(function (q) { return q.id === id; })[0] || { id: id, label: id }, cx = x(id);
+          var fl = h("g", { class: "fl", "data-node": id });
+          fl.appendChild(h("use", { href: "#ico-" + iconFor(n), x: cx - 15, y: 8, width: 30, height: 30, "aria-hidden": "true" }));
+          var lt = h("text", { class: "fllabel", x: cx, y: 54, "text-anchor": "middle" }, n.label || id);
+          fl.appendChild(lt); hdrJobs.push({ el: lt, label: String(n.label || id), x: cx });
+          fl.appendChild(h("line", { class: "flline", x1: cx, y1: 68, x2: cx, y2: H - 4 }));
+          g.appendChild(fl);
+        });
+        fhs = [];
+        fpic.innerHTML = ""; fpic.style.display = s.flowPicture === false ? "none" : ""; fpic.appendChild(g); // attached, so text can be measured
+        hdrJobs.forEach(function (j) { // a header wider than its lifeline spacing wraps onto two lines, at the word nearest the middle
+          if (j.el.getComputedTextLength() <= FL_GAP - 12) return;
+          var words = j.label.split(" "), best = 1, bestGap = Infinity, mid = j.label.length / 2, pos = 0;
+          for (var i = 0; i < words.length - 1; i++) {
+            pos += words[i].length;
+            if (Math.abs(pos - mid) < bestGap) { bestGap = Math.abs(pos - mid); best = i + 1; }
+            pos += 1;
+          }
+          j.el.textContent = "";
+          [words.slice(0, best).join(" "), words.slice(best).join(" ")].forEach(function (line, k) {
+            j.el.appendChild(h("tspan", { x: j.x, y: 47 + k * 14 }, line));
+          });
+        });
+        rows.forEach(function (r, k) {
+          var y = FL_TOP + 14 + k * FL_ROW, st = flow.steps[r.i], lab = (r.i + 1) + " \u00b7 " + carryOf(st);
+          var el = h("g", { class: "fh" + (r.note ? " note" : ""), "data-step": r.i, onclick: function () { show(r.i); } });
+          var band = h("rect", { class: "fhband", x: Math.min(x(r.a), x(r.b)) - 14, y: y - 22, width: Math.abs(x(r.a) - x(r.b)) + 28, height: FL_ROW - 6, rx: 6 });
+          el.appendChild(band);
+          if (r.note) {
+            el.appendChild(h("circle", { class: "fhdot", cx: x(r.a), cy: y, r: 4 }));
+            var nt = h("text", { class: "fhlabel", x: x(r.a) + 10, y: y + 4 }, lab);
+            el.appendChild(nt); g.appendChild(el); // measured once in the page: the band and the SVG follow the label
+            var need = x(r.a) + 10 + nt.getComputedTextLength() + 14;
+            band.setAttribute("width", need - (x(r.a) - 14));
+            if (need > W) { W = need; g.setAttribute("viewBox", "0 0 " + W + " " + H); g.setAttribute("width", W); }
+          } else {
+            var dir = x(r.b) >= x(r.a) ? 1 : -1;
+            if (broken && !skipped) skipped = true;
+            else el.appendChild(h("line", { class: "fharrow", x1: x(r.a) + dir * 3, y1: y, x2: x(r.b) - dir * 3, y2: y, "marker-end": "url(#" + mkId + ")" }));
+            el.appendChild(h("text", { class: "fhlabel", x: (x(r.a) + x(r.b)) / 2, y: y - 7, "text-anchor": "middle" }, lab));
+          }
+          if (!el.parentNode) g.appendChild(el);
+          fhs.push(el);
+        });
+      }
+      function paintPicture() {
+        if (s.flowPicture === false) { fpic.style.display = "none"; return; }
+        fpic.style.display = "";
+        fhs.forEach(function (el) {
+          var i = +el.getAttribute("data-step");
+          el.setAttribute("class", "fh" + (el.classList.contains("note") ? " note" : "") + " " + (i < step ? "done" : i === step ? "cur" : "todo"));
+          var ar = el.querySelector(".fharrow");
+          if (ar) ar.setAttribute("marker-end", "url(#" + fpMk + (i === step ? "c" : "") + ")");
+        });
+        var c = fpic.querySelector(".fh.cur");
+        if (c && fpic.scrollWidth > fpic.clientWidth) {
+          var fr = fpic.getBoundingClientRect(), b = c.getBoundingClientRect();
+          fpic.scrollTo({ left: fpic.scrollLeft + (b.left + b.right) / 2 - (fr.left + fr.width / 2), behavior: reduce ? "auto" : "smooth" });
+        }
+      }
+      function show(i) {
+        if (i != null) step = i;
+        var st = cur.steps[step], path = st.path || [], now = performance.now();
+        hlNodes = {}; hlEdges = {}; clearTokens();
+        path.forEach(function (id, i) { hlNodes[id] = 1; if (i) { var k = edgeBetween(path[i - 1], id); if (k >= 0) { hlEdges[k] = 1; addToken(k, path[i - 1], id, carryOf(st), now); } } });
         svg.setAttribute("class", "walking");
         wCount.textContent = "Step " + (step + 1) + " of " + cur.steps.length;
         wText.innerHTML = md(st.text || "");
         back.disabled = step === 0; next.textContent = step === cur.steps.length - 1 ? "Done" : "Next";
         walk.style.display = "";
         paintSel();
+        paintPicture();
         // on a narrow screen the diagram scrolls sideways: bring the lit boxes into view
         var lit = [].slice.call(svg.querySelectorAll(".node.hl"));
         if (lit.length && stage.scrollWidth > stage.clientWidth) {
@@ -456,17 +662,17 @@
         }
       }
       function stopWalk() {
-        cur = null; hlNodes = {}; hlEdges = {}; svg.removeAttribute("class"); walk.style.display = "none";
+        cur = null; hlNodes = {}; hlEdges = {}; clearTokens(); svg.removeAttribute("class"); walk.style.display = "none"; fpic.style.display = "none";
         flowBtns.forEach(function (b) { b.classList.remove("on"); }); paintSel();
       }
       flowBar = h("div", { class: "bar flows" }, h("span", { class: "barl" }, "How it works:"));
       s.flows.forEach(function (f) {
-        var b = h("button", { class: "chip", onclick: function () { cur = f; step = 0; flowBtns.forEach(function (x) { x.classList.toggle("on", x === b); }); show(); } }, f.label);
+        var b = h("button", { class: "chip", onclick: function () { cur = f; step = 0; flowPicture(f); flowBtns.forEach(function (x) { x.classList.toggle("on", x === b); }); show(); } }, f.label);
         flowBtns.push(b); flowBar.appendChild(b);
       });
     }
     if (presetBar.childNodes.length) presetBar.insertBefore(h("span", { class: "barl" }, "Try:"), presetBar.firstChild);
-    return [paras(s.body || []), h("div", { class: "card sim" }, flowBar, presetBar.childNodes.length ? presetBar : null, stage, walk, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
+    return [paras(s.body || []), h("div", { class: "card sim" }, flowBar, presetBar.childNodes.length ? presetBar : null, stage, walk, fpic, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
   };
 
   // ----- chart: a quantity as a curve -----
@@ -479,6 +685,7 @@
     var t = [], i, v;
     if (log) {
       var a = Math.floor(Math.log10(lo)), b = Math.ceil(Math.log10(hi));
+      if (!isFinite(a) || !isFinite(b)) return t;
       for (i = a; i <= b; i++) [1, 2, 5].forEach(function (k) {
         v = k * Math.pow(10, i);
         if (v >= lo * 0.999 && v <= hi * 1.001 && (k === 1 || b - a <= 2)) t.push(v);
@@ -500,7 +707,7 @@
   builders.chart = function (s) {
     var W = 720, Hh = 330, ML = 60, MR = 18, MT = 34, MB = 50, PW = W - ML - MR, PH = Hh - MT - MB;
     var X = s.x || {}, Y = s.y || {}, ser = (s.series || []).slice(0, MAX_SERIES), arch = archSection();
-    var needSim = !!arch && ser.some(readsSim), clipId = "clip" + chartN++;
+    var needSim = !!arch && ser.some(function (e) { return needsSim(e.expr); }), clipId = "clip" + chartN++;
     var data = null, sx = null, sy = null, ylo = 0, yhi = 1, plot = null, clipRect = null;
     function points() {
       if (X.values) return X.values.slice();
@@ -520,7 +727,8 @@
       return { xs: xs, ys: ys };
     }
     function shown(v) { return isFinite(v) && (!Y.log || v > 0); }
-    function now(e) { return X.param && !e.y ? +val(e.expr, S.m, S.p[X.param]) : NaN; }
+    function now(e) { return X.param && !e.y ? +shownVal(e.expr, S.m, S.p[X.param]) : NaN; }
+    function liveOn(e) { return X.param && !e.y; }
 
     var svg = h("svg", { viewBox: "0 0 " + W + " " + Hh, role: "img", "aria-label": s.title || "chart" });
     clipRect = h("rect", { x: ML, y: MT - 3, width: PW, height: PH + 6 });
@@ -541,6 +749,7 @@
       ylo = Y.min != null ? Y.min : all.length ? Math.min.apply(null, all) : Y.log ? 1 : 0;
       yhi = Y.max != null ? Y.max : all.length ? Math.max.apply(null, all) : ylo + 1;
       if (Y.log) {
+        if (!(ylo > 0)) ylo = all.length ? Math.min.apply(null, all) : 1;
         ylo = Math.pow(10, Math.floor(Math.log10(ylo))); yhi = Math.pow(10, Math.ceil(Math.log10(yhi)));
         if (yhi <= ylo) yhi = ylo * 10;
       } else {
@@ -595,7 +804,7 @@
       legend.innerHTML = "";
       if (ser.length > 1 || X.param) ser.forEach(function (e, j) {
         var v = now(e);
-        legend.appendChild(h("span", null, h("i", { class: "s" + j }), e.label, isFinite(v) ? h("b", null, fmt(v, Y.fmt, Y.unit)) : null));
+        legend.appendChild(h("span", null, h("i", { class: "s" + j }), e.label, isFinite(v) ? h("b", null, fmt(v, Y.fmt, Y.unit)) : liveOn(e) && isNaN(v) ? h("b", null, h("span", { "data-na": "" }, "n/a")) : null));
       });
       legend.style.display = legend.childNodes.length ? "" : "none";
       table.innerHTML = "";
@@ -803,7 +1012,7 @@
     var btns = s.steps.map(function (st, i) { var b = h("button", { onclick: function () { cur = i; paint(); } }, (i + 1) + ". " + st.title); list.appendChild(h("li", null, b)); return b; });
     function paint() {
       btns.forEach(function (b, i) { b.className = i === cur ? "on" : ""; });
-      var st = s.steps[cur], prev = cur ? s.steps[cur - 1].state : {};
+      var st = s.steps[cur], prev = (cur && s.steps[cur - 1].state) || {};
       pane.innerHTML = "";
       pane.appendChild(h("div", { class: "call" }, st.call));
       if (st.result != null) pane.appendChild(h("p", { html: "→ <code>" + esc(st.result) + "</code>" }));
@@ -871,6 +1080,7 @@
     var theme = h("button", { onclick: function () { var d = document.documentElement; var t = d.dataset.theme === "dark" ? "light" : "dark"; d.dataset.theme = t; theme.textContent = t === "dark" ? "Light" : "Dark"; } }, "Dark");
     toc.appendChild(theme);
     root.appendChild(h("div", { class: "wrap" }, toc, main));
+    afterAttach.forEach(function (f) { f(); });
     document.title = SPEC.title + " | " + KIND[0];
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) { document.documentElement.dataset.theme = "dark"; theme.textContent = "Light"; }
     recompute();

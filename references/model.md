@@ -1,5 +1,7 @@
 # Writing the model
 
+`spec-format.md` has everything needed to write a spec. This file explains the model in more depth, for when a page does not behave as expected.
+
 The model is the part that makes the page true. Spend most of your effort here.
 
 ## HLD: three layers
@@ -9,7 +11,7 @@ The model is the part that makes the page true. Spend most of your effort here.
 3. **Graph** (`arch`). Source nodes carry `rps: "=r.peakRead"`. Each node has:
    - `instances` and `cap` (requests per second one instance serves), `ms` (service time at low load).
    - `kind`: `cache`, `store`, `queue`, `clients`. A queue that is overloaded shows a growing backlog instead of errors.
-   - `hit` (cache only): hit ratio. Pair with an outgoing edge marked `miss: true`. Use `zipf(...)` for a cache sized in memory.
+   - `hit` (cache only): hit ratio. Every route out of a cache is marked `miss: true`, because hits end at the cache. Use `zipf(...)` for a cache sized in memory.
    - Text for the click-through panel: `role`, `why`, `scale`, `fails`.
 
 ## Lanes and walkthroughs
@@ -26,7 +28,7 @@ The diagram is how a learner understands the system, so lay it out on purpose.
 |---|---|
 | default | One of several alternatives. Traffic splits equally, or by `share`. |
 | `share: "=expr"` | Fraction of the node's accepted traffic taking this edge. |
-| `miss: true` | Carries `(1 - hit)` of the node's traffic. The hit part ends at the node. |
+| `miss: true` | Carries `(1 - hit)` of the node's traffic. The hit part ends at the node. Required on every route out of a cache. |
 | `call: true` | Every request makes this call (with probability `share`). Latency adds and success multiplies. |
 | `async: true` | Loads the target but is not on the user's path. No latency or errors for the user. Use for queues and fan-out. |
 | `mult: "=expr"` | Multiplies the flow. One post becomes N inserts. This is how write amplification appears. |

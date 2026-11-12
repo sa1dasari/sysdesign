@@ -51,13 +51,17 @@ function change(title, call, fn, note) {
   steps.push({ title, call, result: String(result), note, state: snap(moved(prevRing, r), moved(prevMod, m)) });
   prevRing = r; prevMod = m;
 }
-steps.push({ title: "Three servers", call: `new HashRing(["A","B","C"], ${VNODES})`, note: `Each server is hashed onto the circle ${VNODES} times. The table shows which server owns each of twelve keys.`, state: snap() });
+steps.push({ title: "Three servers", call: `new HashRing(["A","B","C"], ${VNODES})`, result: `3 servers, ${3 * VNODES} points`, note: `Each server is hashed onto the circle ${VNODES} times. The table shows which server owns each of twelve keys.`, state: snap() });
 steps.push({ title: "Look up a key", call: 'ring.lookup("user:7")', result: ring.lookup("user:7"), note: "Hash the key, binary-search for the first server point at or after it, wrap past the end. About log2(300) = 9 comparisons.", state: snap() });
-change("Add server D", 'ring.add("D")  // and mod.add("D")', () => "added", "Every key the ring moved went to D. No key moved between A, B and C. Mod N, given the same change, reshuffled most keys between the old servers too.");
-change("Server B dies", 'ring.remove("B")  // and mod.remove("B")', () => "removed", "The ring moves only B's keys, spread over the survivors because B's 100 points were scattered. Mod N moves keys that never touched B.");
+change("Add server D", 'ring.add("D")  // and mod.add("D")', () => { ring.add("D"); mod.add("D"); return "added"; }, "Every key the ring moved went to D. No key moved between A, B and C. Mod N, given the same change, reshuffled most keys between the old servers too.");
+change("Server B dies", 'ring.remove("B")  // and mod.remove("B")', () => { ring.remove("B"); mod.remove("B"); return "removed"; }, "The ring moves only B's keys, spread over the survivors because B's 100 points were scattered. Mod N moves keys that never touched B.");
 const hot = ring.lookup("user:7");
 steps.push({ title: "One key gets hot", call: 'for 10,000 requests: ring.lookup("user:7")', result: `all 10,000 go to ${hot}`, note: "The weak point. Consistent hashing spreads keys, not traffic. A hot key stays on one server no matter how many servers you add. Fix it above the ring: replicate that key, or split it into user:7#1..k.", state: snap() });
-change("Empty ring", 'new HashRing([]).lookup("user:1")', () => new HashRing([]).lookup("user:1"), "With no servers there is no owner. The caller must treat this as an outage, not as a cache miss.");
+{
+  let result;
+  try { result = new HashRing([]).lookup("user:1"); } catch (e) { result = `${e.constructor.name}: ${e.message}`; }
+  steps.push({ title: "Empty ring", call: 'new HashRing([]).lookup("user:1")', result, note: "With no servers there is no owner. The caller must treat this as an outage, not as a cache miss.", state: snap() });
+}
 
 export default {
   kind: "concept",
@@ -160,7 +164,7 @@ export default {
           question: "Ring, rendezvous hashing, or jump hash?",
           options: [
             { name: "Ring with virtual nodes", pick: true, pros: ["Any server can join or leave, by name", "Weights by point count", "O(log points) lookup"], cons: ["Needs virtual nodes to be even", "Memory per client"] },
-            { name: "Rendezvous (highest random weight)", pros: ["Perfectly even, no virtual nodes", "Very simple"], cons: ["O(N) hashes per lookup, slow past a few hundred servers"] },
+            { name: "Rendezvous (highest random weight)", pros: ["Even without virtual nodes", "Very simple"], cons: ["O(N) hashes per lookup, slow past a few hundred servers"] },
             { name: "Jump hash", pros: ["No memory, perfectly even, fast"], cons: ["Servers must be numbered 0..N-1", "Can only add or remove the last one, so a random failure is not handled"] },
           ],
           why: "Cache clusters lose arbitrary servers, which rules out jump hash. The ring scales to large clusters where rendezvous gets slow.",

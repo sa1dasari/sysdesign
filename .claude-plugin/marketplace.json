@@ -1,0 +1,14 @@
+{
+  "name": "sysdesign-marketplace",
+  "owner": {
+    "name": "sa1dasari"
+  },
+  "description": "The sysdesign skill: interactive pages that explain how system designs work.",
+  "plugins": [
+    {
+      "name": "sysdesign",
+      "source": "./",
+      "description": "Explain any system design topic as an interactive page you can poke."
+    }
+  ]
+}

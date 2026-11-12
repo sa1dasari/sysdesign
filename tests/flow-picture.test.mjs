@@ -121,3 +121,28 @@ test("arrow markers have unique ids and the current arrow uses the accent marker
     assert.notEqual(r.todo, r.cur);
   });
 });
+
+const hdrBoxes = (page) => page.$$eval(".fpic .fllabel", (els) => els.map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom]; }));
+const svgBox = (page) => page.$eval(".fpic svg", (e) => { const r = e.getBoundingClientRect(); return [r.left, r.right]; });
+const longLabels = () => {
+  const spec = miniSpec();
+  spec.sections[1].nodes[0].label = "Phone app for members";
+  spec.sections[1].nodes[1].label = "Celebrity cache service";
+  return spec;
+};
+
+test("long header labels wrap and do not collide", async () => {
+  await withPage(longLabels(), async (page) => {
+    await toStep(page, 0);
+    const b = await hdrBoxes(page), [l, r] = await svgBox(page);
+    assert.ok(b.length >= 3);
+    for (const x of b) assert.ok(x[0] >= l - 1 && x[1] <= r + 1, "header inside the picture");
+    for (let i = 1; i < b.length; i++) assert.ok(b[i - 1][1] <= b[i][0], "neighbouring headers do not overlap");
+  });
+});
+
+test("check passes with long header labels", async () => {
+  const { runCheck } = await import("./helpers.mjs");
+  const { code, out } = runCheck(await buildSpec(longLabels()));
+  assert.equal(code, 0, out);
+});

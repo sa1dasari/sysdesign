@@ -97,7 +97,7 @@ Arrows must not form a loop. Draw a reply as part of a `call` edge, not as an ed
 - **`icon`:** one of `phone`, `browser`, `user`, `server`, `worker`, `queue`, `cache`, `database`, `storage`, `batch`, `lock`, `globe`, `search`, `mail`. Default from `kind`: `clients` is `phone`, `cache` is `cache`, `store` is `database`, `queue` is `queue`, a kind with `batch` in it is `batch`, anything else is `server`. Set it when the default reads wrong, for example `jobs` as `batch` or a log store as `storage`.
 - **Queues:** an overloaded `queue` makes requests wait. Its backlog grows (`m.nodes.<id>.growth`) and they are not counted as failures.
 - **Sources:** a node with `rps` is a source. `internal: true` keeps a source out of the user-facing failure rate. Mark every background source this way (abusive clients, batch jobs): their rejections are the point.
-- **Dropped requests:** a node that cannot serve a request drops it there. The drop counts as a failure and nothing flows on from it.
+- **Dropped requests:** a node that cannot serve a request drops it there. On the user's path, the drop counts as a failure. On an async edge or from an internal source it does not. Nothing flows on from a dropped request.
 - **Capacity:** `instances`, `cap` (requests per second per instance) and `ms` (service time when idle) may be expressions. A node with no `cap` never saturates. `instances: 0` means the node is down.
 - **Text:** `role`, `why`, `scale` and `fails` fill the panel shown when the node is clicked.
 
@@ -125,13 +125,13 @@ Every preset except the first has an `expect`: an `=` expression that says what 
 
 Metrics may return text. `warn` and `bad` colour them. A value that comes out as NaN is shown as "n/a" and fails the check.
 
-Use one phrase per `m.nodes` field in text you write about the model. Do not call `util` "load" in one place and "busy" in another.
+Use the same word for a field everywhere in text you write about the model. Do not call `util` "load" in one place and "busy" in another.
 
 ### The simulation result
 
 | Read | Gives |
 |---|---|
-| `m.nodes.<id>` | `inflow`, `util` (load ÷ capacity), `accFrac`, `shed`, `latency`, `hit`, `growth` |
+| `m.nodes.<id>` | `inflow`: requests per second arriving. `util`: inflow ÷ capacity (1 is full, over 1 is overloaded). `accFrac`: share of the inflow it serves (1 when nothing is dropped). `shed`: requests per second dropped. `latency`: milliseconds spent at this node, including queueing. `hit`: cache hit rate, 0 for a node that is not a cache. `growth`: queue backlog growth per second, 0 unless an overloaded queue |
 | `m.rps`, `m.err`, `m.lat` | The user-facing totals |
 | `m.bottleneck` | The busiest node's id |
 

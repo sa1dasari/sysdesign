@@ -58,3 +58,11 @@ test("a NaN built-in metric still fails the check", async () => {
   const { code, out } = await run(spec);
   assert.equal(code, 1, out); assert.match(out, /Avg latency: NaN/); assert.match(out, /not a number/);
 });
+
+test("overlapping picture headers fail", async () => {
+  const spec = miniSpec();
+  spec.sections[1].nodes[0].label = "Internationalisationalisation";
+  spec.sections[1].nodes[1].label = "Internationalisationalisations";
+  const { code, out } = await run(spec);
+  assert.equal(code, 1, out); assert.match(out, /headers overlap/);
+});

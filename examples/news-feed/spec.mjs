@@ -109,7 +109,7 @@ export default {
         { label: "Normal day", set: {}, note: "Hybrid fan-out, a warm cache, sized for a peak of 3 times the daily average." },
         { label: "Push every post to every follower", set: { hybrid: 0 }, expect: "=m.nodes.workers.util > 20 && m.nodes.workers.accFrac < 0.1", note: "Celebrity posts are pushed to millions of feeds. Watch the fan-out workers: the insert rate jumps about 50 times and feeds stop updating." },
         { label: "Feed cache restarts", set: { warm: 0 }, expect: "=m.nodes.tlRead.hit < 0.01 && m.nodes.rebuild.util > 1 && m.err > 0.05 && m.lat > 300", note: "Every feed read misses and hits the rebuild tier, which was sized for a small fraction of traffic. Latency climbs and requests start to fail." },
-        { label: "Viral spike", set: { peak: 9 }, expect: "=m.nodes.gw.util > 1 && m.err > 0.3", note: "Three times the planned peak. The gateway runs out first, so some requests fail before they reach anything else." },
+        { label: "Viral spike", set: { peak: 9 }, expect: "=m.nodes.gw.util > 1 && m.err > 0.3 && m.nodes.feedSvc.util < 1 && m.nodes.postSvc.util < 1", note: "Three times the planned peak. The gateway runs out first, so some requests fail before they reach anything else." },
         { label: "Lose most fan-out workers", set: { workers: 3 }, expect: "=m.err < 0.001 && m.nodes.workers.accFrac > 0.3 && m.nodes.workers.accFrac < 0.4", note: "Users see no errors, but about two thirds of new posts fall behind and reach feeds late. Watch \"Fan-out keeping up\". This is the failure that does not page anyone." },
       ],
       controls: [

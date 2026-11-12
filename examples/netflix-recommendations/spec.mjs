@@ -95,7 +95,7 @@ export default {
       ],
       presets: [
         { label: "Normal evening", set: {}, note: "All three speeds on. Your page loads quickly and reflects what you did a minute ago." },
-        { label: "Turn off nearline", set: { nearlineOn: 0 }, expect: "=!p.nearlineOn && m.err < 0.001 && m.nodes.nearline.util < 0.01", note: "Nothing breaks and nothing gets slower. But finish a show and it stays on your home page until the next nightly run. Watch \"New activity shows up\"." },
+        { label: "Turn off nearline", set: { nearlineOn: 0 }, expect: "=!p.nearlineOn && m.err < 0.001 && m.nodes.nearline.util < 0.01 && m.lat < 80", note: "Nothing breaks and nothing gets slower. But finish a show and it stays on your home page until the next nightly run. Watch \"New activity shows up\"." },
         { label: "Big premiere night", set: { surge: 3 }, expect: "=m.err < 0.001 && m.nodes.events.util > 1 && m.nodes.nearline.util > 1", note: "Three times the usual events as everyone hits play at once. Pages still load. But the event stream is overloaded and the nearline workers fall behind, so your home page lags behind what you just did." },
         { label: "Online ranking too slow", set: { onlineRank: 0 }, expect: "=!p.onlineRank && m.err < 0.001 && m.lat < 40", note: "Online ranking falls back to the stored list. Pages get faster and nothing fails; you just lose the adjustments for this moment. Watch \"Your rows are\"." },
         { label: "Skip precomputing, do it all live", set: { precompute: 0 }, expect: "=m.nodes.online.util > 5 && m.err > 0.5 && m.lat > 1000", note: "Every page now runs the full models while you wait. Online ranking runs out of capacity, pages slow to a crawl and most fail. This is why the heavy work runs offline." },

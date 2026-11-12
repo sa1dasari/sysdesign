@@ -153,6 +153,7 @@ try {
       const inside=(el,box)=>{const a=el.getBoundingClientRect();return a.left>=box.left-1&&a.right<=box.right+1&&a.top>=box.top-1&&a.bottom<=box.bottom+1};
       const svg=document.querySelector('.sim .stage svg');
       const pic={arrows:document.querySelectorAll('.fpic .fharrow').length,shown:!!document.querySelector('.fpic svg')&&getComputedStyle(document.querySelector('.fpic')).display!=='none',over:[]};
+      if(pic.shown){const hb=[...document.querySelectorAll('.fpic .fllabel')].map(t=>t.getBoundingClientRect());pic.hdr=0;for(let a=1;a<hb.length;a++)if(hb[a-1].right>hb[a].left&&hb[a-1].left<hb[a].right)pic.hdr++;}
       if(pic.shown){const sb=document.querySelector('.fpic svg').getBoundingClientRect();document.querySelectorAll('.fpic text').forEach(t=>{if(!inside(t,sb))pic.over.push(t.textContent)})}
       for(let k=0;k<50;k++){const lit=document.querySelectorAll('.sim .node.hl').length,txt=document.querySelector('.walk .wtext').textContent;
         const toks=document.querySelectorAll('.sim .tok').length;out.push(lit+':'+(txt?1:0)+':'+toks);
@@ -169,6 +170,7 @@ try {
       if (!r.pic.shown) { say(`FAIL walkthrough "${flows[i]}" shows no picture`); failed = true; }
       else {
         if (r.pic.arrows !== hops) { say(`FAIL walkthrough "${flows[i]}" picture has ${r.pic.arrows} arrows for ${hops} hops`); failed = true; }
+        if (r.pic.hdr) { say(`FAIL walkthrough "${flows[i]}" picture: ${r.pic.hdr} pair(s) of box headers overlap`); failed = true; }
         for (const t of new Set(r.pic.over)) { say(`FAIL label "${t}" overflows its box (picture of walkthrough "${flows[i]}")`); failed = true; }
       }
     }

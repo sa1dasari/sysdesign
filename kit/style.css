@@ -222,3 +222,5 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
 .tokdot{fill:var(--accent);stroke:var(--panel);stroke-width:1.5}
 .tokpill{fill:var(--accent)}
 .toklabel{fill:#fff;font:600 11px var(--mono);pointer-events:none}
+
+:root[data-theme=dark] .toklabel{fill:var(--bg)}

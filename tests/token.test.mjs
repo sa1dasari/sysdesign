@@ -75,3 +75,14 @@ test("exit removes tokens", async () => {
     assert.equal(await page.locator(".tok").count(), 0);
   });
 });
+
+test("token label is dark on the light dark-theme accent, white on the light-theme accent", async () => {
+  await withPage(miniSpec(), async (page) => {
+    await toStep(page, 0);
+    const fill = () => page.$eval(".tok .toklabel", (e) => getComputedStyle(e).fill);
+    await page.evaluate(() => { document.documentElement.dataset.theme = "light"; });
+    assert.equal(await fill(), "rgb(255, 255, 255)");
+    await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
+    assert.notEqual(await fill(), "rgb(255, 255, 255)");
+  });
+});

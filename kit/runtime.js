@@ -117,7 +117,6 @@
   function fail(msg) { document.body.dataset.error = (document.body.dataset.error || "") + msg + " | "; }
   function fmt(v, f, unit) {
     if (typeof v !== "number") return String(v);
-    if (isNaN(v)) return "n/a";
     var s;
     if (f === "pct") s = (v * 100).toFixed(v < 0.1 ? 2 : 1) + "%";
     else if (f === "bytes") s = scale(v, ["B", "KB", "MB", "GB", "TB", "PB", "EB"], 1000);
@@ -127,6 +126,8 @@
     else s = si(v);
     return unit && f !== "bytes" && f !== "ms" && f !== "pct" ? s + " " + unit : s;
   }
+  // For values the reader sees from a shownVal: NaN reads "n/a". Built-in metrics keep showing NaN so check.mjs catches it.
+  function fmtShown(v, f, unit) { return typeof v === "number" && isNaN(v) ? "n/a" : fmt(v, f, unit); }
   function si(v) {
     var a = Math.abs(v);
     if (a >= 1e12) return (v / 1e12).toFixed(2).replace(/\.?0+$/, "") + "T";
@@ -302,7 +303,7 @@
     var tb = h("table", { class: "rows" });
     (s.rows || []).forEach(function (row) {
       var td = h("td");
-      onChange(function () { put(td, fmt(shownVal(row.expr), row.fmt, row.unit), true); });
+      onChange(function () { put(td, fmtShown(shownVal(row.expr), row.fmt, row.unit), true); });
       tb.appendChild(h("tr", null, h("td", null, row.label, row.why ? h("span", { class: "why", html: md(row.why) }) : null), td));
     });
     return [paras(s.body || []), h("div", { class: "est" }, inputs, h("div", { class: "card" }, h("h3", null, "Derived"), tb))];
@@ -477,7 +478,7 @@
       { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { var r = m.bottleneck && m.nodes[m.bottleneck]; return !r ? "n/a" : r.total === 0 ? "down" : Math.round(r.util * 100) + "%"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
     ];
     (s.metrics || []).forEach(function (x, i) {
-      defs.push({ id: "x" + i, label: x.label, shown: true, get: function (m) { return fmt(shownVal(x.expr, m), x.fmt, x.unit); },
+      defs.push({ id: "x" + i, label: x.label, shown: true, get: function (m) { return fmtShown(shownVal(x.expr, m), x.fmt, x.unit); },
         cls: function (m) { return x.bad && val(x.bad, m) ? "bad" : x.warn && val(x.warn, m) ? "warn" : ""; } });
     });
     defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });

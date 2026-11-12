@@ -51,7 +51,7 @@ function change(title, call, fn, note) {
   steps.push({ title, call, result: String(result), note, state: snap(moved(prevRing, r), moved(prevMod, m)) });
   prevRing = r; prevMod = m;
 }
-steps.push({ title: "Three servers", call: `new HashRing(["A","B","C"], ${VNODES})`, note: `Each server is hashed onto the circle ${VNODES} times. The table shows which server owns each of twelve keys.`, state: snap() });
+steps.push({ title: "Three servers", call: `new HashRing(["A","B","C"], ${VNODES})`, result: `3 servers, ${3 * VNODES} points`, note: `Each server is hashed onto the circle ${VNODES} times. The table shows which server owns each of twelve keys.`, state: snap() });
 steps.push({ title: "Look up a key", call: 'ring.lookup("user:7")', result: ring.lookup("user:7"), note: "Hash the key, binary-search for the first server point at or after it, wrap past the end. About log2(300) = 9 comparisons.", state: snap() });
 change("Add server D", 'ring.add("D")  // and mod.add("D")', () => { ring.add("D"); mod.add("D"); return "added"; }, "Every key the ring moved went to D. No key moved between A, B and C. Mod N, given the same change, reshuffled most keys between the old servers too.");
 change("Server B dies", 'ring.remove("B")  // and mod.remove("B")', () => { ring.remove("B"); mod.remove("B"); return "removed"; }, "The ring moves only B's keys, spread over the survivors because B's 100 points were scattered. Mod N moves keys that never touched B.");

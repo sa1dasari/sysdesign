@@ -70,9 +70,9 @@ There is one `arch` section per page.
   ],
   edges: [ /* see the table below */ ],
   flows: [{ label: "You open the home page", steps: [
-    { path: ["app", "api"], text: "One or two plain sentences about this step." },
+    { path: ["app", "api"], carry: "GET /home", text: "One or two plain sentences about this step." },
   ] }],
-  presets: [{ label: "Normal evening", set: {}, note: "What to watch." }, { label: "Turn off X", set: { xOn: 0 }, note: "..." }],
+  presets: [{ label: "Normal evening", set: {}, note: "What to watch." }, { label: "Turn off X", set: { xOn: 0 }, expect: "=!p.xOn && m.err < 0.001", note: "..." }],
   controls: [{ id: "xOn", label: "X", value: 1, min: 0, max: 1, step: 1, fmt: "onoff" }],
   metrics: [{ label: "New activity shows up", expr: "=p.xOn ? 'in ~1 min' : 'next day'", warn: "=!p.xOn", bad: "=...", fmt: "pct", unit: "" }] }
 ```
@@ -87,13 +87,17 @@ There is one `arch` section per page.
 | `async: true` | Loads the target but is not on the user's path: no latency, no errors for the user. Use it for queues, events and background jobs. |
 | `mult: "=expr"` | Multiplies the flow: one post becomes N inserts. |
 
+`mult` changes load only. It never changes latency or the failure rate.
+
 Arrows must not form a loop. Draw a reply as part of a `call` edge, not as an edge going back.
 
 ### Nodes
 
 - **`kind`:** `clients`, `cache`, `store`, `queue`, or any word, which is shown under the label.
+- **`icon`:** one of `phone`, `browser`, `user`, `server`, `worker`, `queue`, `cache`, `database`, `storage`, `batch`, `lock`, `globe`, `search`, `mail`. Default from `kind`: `clients` is `phone`, `cache` is `cache`, `store` is `database`, `queue` is `queue`, a kind with `batch` in it is `batch`, anything else is `server`. Set it when the default reads wrong, for example `jobs` as `batch` or a log store as `storage`.
 - **Queues:** an overloaded `queue` makes requests wait. Its backlog grows (`m.nodes.<id>.growth`) and they are not counted as failures.
-- **Sources:** a node with `rps` is a source. `internal: true` keeps a source out of the user-facing failure rate (for example abusive clients, whose rejections are the point).
+- **Sources:** a node with `rps` is a source. `internal: true` keeps a source out of the user-facing failure rate. Mark every background source this way (abusive clients, batch jobs): their rejections are the point.
+- **Dropped requests:** a node that cannot serve a request drops it there. The drop counts as a failure and nothing flows on from it.
 - **Capacity:** `instances`, `cap` (requests per second per instance) and `ms` (service time when idle) may be expressions. A node with no `cap` never saturates. `instances: 0` means the node is down.
 - **Text:** `role`, `why`, `scale` and `fails` fill the panel shown when the node is clicked.
 
@@ -107,13 +111,21 @@ Arrows must not form a loop. Draw a reply as part of a `call` edge, not as an ed
 
 Each step's `path` lists the boxes involved, in order. Consecutive boxes must be joined by an edge, in either direction.
 
+`carry` says what moves along the lit arrows, in plain words, at most 16 characters: `"GET /home"`, `"new rows"`, `"▶ finished ep."`. It is a label, not a sentence. A step with two or more boxes and no `carry` gets a lint warning and falls back to the first three words of `text`. A step with one box needs none.
+
+Under the architecture the page draws a picture of the chosen walkthrough, one box per step with each `carry` on the arrow between. It is on by default. Set `flowPicture: false` on the `arch` section to turn it off.
+
 ### Presets
 
 Presets apply on top of the defaults, so `set: {}` is the normal state and must come first. Name them for what a user would notice. Keys must be slider ids.
 
+Every preset except the first has an `expect`: an `=` expression that says what its `note` claims, such as `"=m.nodes.api.util > 1"`. The check fails when it is false. Write it from the real simulated numbers, and make it something that turns false if the effect goes away. If the note says nothing fails, add `m.err < 0.001`.
+
 ### Metrics
 
-Metrics may return text. `warn` and `bad` colour them.
+Metrics may return text. `warn` and `bad` colour them. A value that comes out as NaN is shown as "n/a" and fails the check.
+
+Use one phrase per `m.nodes` field in text you write about the model. Do not call `util` "load" in one place and "busy" in another.
 
 ### The simulation result
 

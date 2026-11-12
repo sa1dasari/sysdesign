@@ -81,8 +81,8 @@ For a topic not in the tables, work it out in this order. Do not refuse a topic 
 - **One idea per page.** Everything on it serves the `idea`. Cut sections that do not.
 - **Truth first.** Every number on the page comes from the spec's model. A number typed into prose drifts out of agreement. Write the model, then quote it.
 - **Every box explains itself.** Fill `role`, `why`, `scale` and `fails` on each node. The click-through panel is the explanation.
-- **Every walkthrough step lights up something and says one thing.** `path` is the boxes involved, in order; `text` is one or two plain sentences.
-- **Changes to try are experiments.** Each preset's `note` states what to watch, and the check output must show it. If the note says pages slow down and they do not, fix the model or the note.
+- **Every walkthrough step lights up something and says one thing.** `path` is the boxes involved, in order; `text` is one or two plain sentences; each step says what moves (`carry`, at most 16 characters) and the page draws it.
+- **Changes to try are experiments.** Each preset's `note` states what to watch, and the check output must show it. If the note says pages slow down and they do not, fix the model or the note. Give every preset after the first an `expect` that encodes its note.
 - **The default state is healthy**: no errors, nothing over about 75% busy, latency under budget. Presets apply on top of it.
 - **Show the failure that does not page anyone.** Stale results, lag and wrong answers teach more than outages.
 - **Choose, do not survey.** Each tradeoff has a `pick` and a reason.

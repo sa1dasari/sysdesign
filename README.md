@@ -4,7 +4,7 @@ A Claude Code skill that explains a system design topic as a live page you can p
 
 Ask about any topic and get one self-contained HTML file. Claude works out which views the topic needs and puts them on one page:
 
-- **System view (HLD)**, when the topic runs on many machines: an architecture diagram in labelled lanes, walkthroughs that light up how a request or an event moves step by step, and changes you can try ("turn off nearline", "a celebrity posts") while the page shows what users would notice. Click a box to see why it exists. Capacity math that recomputes as you drag is there for going deeper.
+- **System view (HLD)**, when the topic runs on many machines: an architecture diagram in labelled lanes, walkthroughs that light up how a request or an event moves step by step, and changes you can try ("turn off nearline", "a celebrity posts") while the page shows what users would notice. Click a box to see why it exists. Boxes have icons, a labelled token moves along each arrow as you step through, and a picture of the whole walkthrough sits under the diagram. Capacity math that recomputes as you drag is there for going deeper.
 - **Object view (LLD)**, when there is code worth designing: a class diagram, a sequence diagram you can step through, a state machine that enforces its own transition table, and a scenario produced by running the real code shown beside it.
 - **Mechanism view (concept)**, when an algorithm or protocol is the point: live charts that put the naive approach next to the real one, measured by running a reference implementation.
 

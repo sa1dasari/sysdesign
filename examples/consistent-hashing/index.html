@@ -93,6 +93,10 @@ table.cols td.nt{color:var(--mute);font-family:var(--sans);font-size:12px}
 .node.sel rect.box{stroke:var(--accent);stroke-width:2.4}
 .node.dead rect.box{stroke:var(--hot);stroke-dasharray:4 3}
 .node text{fill:var(--ink);font:600 14px var(--sans);pointer-events:none}
+.node text.nl.two{font-size:13px}
+symbol .p,symbol .m,symbol .n,symbol .a,symbol .g,symbol .k{stroke:var(--ink);stroke-linejoin:round;stroke-linecap:round}
+symbol .p{fill:var(--panel)}symbol .m{fill:var(--line)}symbol .n{fill:none}
+symbol .a{fill:var(--warm)}symbol .g{fill:var(--cool)}symbol .k{fill:var(--ink)}
 .node text.s{font:12px var(--mono);fill:var(--mute)}
 .node:hover rect.box{stroke:var(--accent)}
 .node{cursor:pointer}
@@ -217,9 +221,33 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
 .tbl td{text-align:right;padding:4px 0;border-bottom:1px solid var(--faint)}
 .tbl th:first-child,.tbl td:first-child{text-align:left}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+.tokdot{fill:var(--accent);stroke:var(--panel);stroke-width:1.5}
+.tokpill{fill:var(--accent)}
+.toklabel{fill:#fff;font:600 11px var(--mono);pointer-events:none}
+
+:root[data-theme=dark] .toklabel{fill:var(--bg)}
+
+.fpic{overflow-x:auto;padding:8px;border-top:1px solid var(--line);background:var(--panel)}
+.fpic svg{display:block;max-width:none}
+.fpic .fllabel{fill:var(--ink);font:600 12px var(--sans)}
+.fpic .flline{stroke:var(--line);stroke-dasharray:4 4}
+.fpic .fharrow{stroke:var(--ink);stroke-width:1.6;fill:none}
+.fpic .fhdot{fill:var(--ink)}
+.fpic .fhlabel{fill:var(--ink);font:12px var(--mono)}
+.fpic .fhband{fill:var(--accent);opacity:0;pointer-events:all;fill-opacity:0}
+.fpic .fh{cursor:pointer}
+.fpic .fh.done{opacity:.45}
+.fpic .fh.todo{opacity:.2}
+.fpic .fh.cur .fhband{opacity:.16;fill-opacity:1}
+.fpic .fh.cur .fharrow{stroke:var(--accent);stroke-width:2.6}
+.fpic .fh.cur .fhdot{fill:var(--accent)}
+.fpic .fh.cur .fhlabel{fill:var(--accent);font-weight:600}
+.fpic .fpmk{fill:var(--ink)}
+.fpic .fpmkcur{fill:var(--accent)}
 </style></head>
 <body><div id="root"></div>
-<script id="spec" type="application/json">{"kind":"concept","title":"Consistent hashing","subtitle":"How a cluster decides which server owns a key, and why adding a server should not move every key you have.","idea":"With hash mod N, changing N moves almost every key. Put servers and keys on the same circle and a change moves only the keys next to the server that changed: about 1/N of them.","sections":[{"type":"text","title":"The problem","body":["You have a cluster of cache servers and want each key (say, a user id) stored on exactly one of them, chosen without asking anyone. A **hash** turns any key into a big, random-looking number, always the same for the same key. The obvious rule is `server = hash(key) mod N`, the remainder after dividing by the number of servers N. It spreads keys evenly and costs nothing.","Then you add a server. N changes, so `hash(key) mod N` changes for almost every key. Each one now looks on the wrong server, misses, and falls through to the database. Adding capacity has just caused an outage.","Consistent hashing fixes this. Hash servers and keys onto the same circle. A key belongs to the first server clockwise from it. A new server takes over only the arcs just before its points, so only those keys move."]},{"type":"estimation","title":"What a change costs","lede":"Drag the assumptions. The charts below follow the same sliders.","inputs":[{"id":"servers","label":"Servers in the cluster","value":10,"min":2,"max":100,"step":1},{"id":"keys","label":"Keys stored","value":100000000,"min":10000,"max":10000000000,"log":true,"fmt":"si"},{"id":"vnodes","label":"Virtual nodes per server","value":100,"min":1,"max":1000,"log":true,"fmt":"int"},{"id":"rereadHours","label":"Moved keys are read again within","value":1,"min":0.25,"max":24,"step":0.25,"unit":"hours"}],"rows":[{"id":"modMoves","label":"Keys moved by adding one server, mod N","expr":"=p.keys*p.servers/(p.servers+1)","fmt":"si","why":"A key stays put only if its hash gives the same answer mod N and mod N+1: about 1 in N+1."},{"id":"ringMoves","label":"Keys moved by adding one server, ring","expr":"=p.keys/(p.servers+1)","fmt":"si","why":"Only the new server's share. That is the minimum any scheme can move, since the new server must own something."},{"id":"factor","label":"How many times more mod N moves","expr":"=r.modMoves/r.ringMoves","fmt":"int","unit":"x","why":"Exactly N. The bigger the cluster, the worse mod N gets."},{"id":"missMod","label":"Extra database reads after the change, mod N","expr":"=r.modMoves/(p.rereadHours*3600)","fmt":"si","unit":"reads/s","why":"Every moved key misses once and is read from the database. This lands on top of normal traffic."},{"id":"missRing","label":"Extra database reads after the change, ring","expr":"=r.ringMoves/(p.rereadHours*3600)","fmt":"si","unit":"reads/s"},{"id":"points","label":"Points on the ring","expr":"=p.servers*p.vnodes","fmt":"int","why":"Servers times virtual nodes. Every client keeps this sorted list."},{"id":"ringBytes","label":"Ring size in each client's memory","expr":"=r.points*16","fmt":"bytes","why":"About 16 bytes per point: a 4-byte position and a reference to the server."},{"id":"steps","label":"Comparisons per lookup","expr":"=ceil(log2(r.points))","fmt":"int","why":"Binary search over the sorted points. Cheap at any realistic size."}]},{"type":"chart","title":"Keys that move when one server joins","lede":"Measured by running ring.mjs on 20,000 keys at each cluster size. Hover for exact values. Drag the server count above to move the marker.","x":{"label":"Servers before the change","values":[2,3,4,5,6,8,10,12,16,20,25,32,40,50,64,80,100],"log":true,"param":"servers","fmt":"int"},"y":{"label":"Share of keys that move","fmt":"pct","min":0,"max":1},"series":[{"label":"mod N, measured","y":[0.6672,0.75025,0.799,0.83695,0.863,0.89175,0.90585,0.91955,0.943,0.9531,0.96305,0.97055,0.97465,0.98105,0.98425,0.9875,0.99065]},{"label":"Ring, measured","y":[0.37755,0.26775,0.2045,0.17495,0.14245,0.11215,0.08685,0.07245,0.04895,0.045,0.0348,0.02335,0.02105,0.0159,0.01365,0.01115,0.0086]},{"label":"Ideal, 1/(N+1)","expr":"=1/(x+1)"}],"note":"Mod N heads towards 100% as the cluster grows. The ring tracks the ideal line. It wobbles around it because 100 virtual nodes give the new server a share that is close to 1/(N+1), not exactly that."},{"type":"chart","title":"How even is the load","lede":"Measured with 10 servers and 50,000 keys, averaged over 8 different sets of server names.","x":{"label":"Virtual nodes per server","values":[1,2,3,5,10,20,30,50,100,200,300,500,1000],"log":true,"param":"vnodes","fmt":"int"},"y":{"label":"Busiest server's keys ÷ average","min":1},"series":[{"label":"Busiest ÷ average, measured","y":[2.327,2.003,1.864,1.625,1.553,1.331,1.266,1.193,1.15,1.103,1.095,1.07,1.061]}],"note":"With one point per server, arcs are random lengths and the busiest server holds more than twice its share. Each server's load is a sum of many small arcs, so it evens out roughly as 1/√(virtual nodes). Past a few hundred, more points cost memory and buy little."},{"type":"sequence","title":"Finding a key's server","hint":"Press play. Nothing here talks to a coordinator: every client computes the same answer from the same ring.","actors":["Client","Ring","Server"],"messages":[{"from":"Client","to":"Ring","text":"lookup(key)","note":"The ring is a sorted array held by each client (or each proxy), not a service."},{"from":"Ring","to":"Ring","text":"h = hash(key)","note":"The same hash function as the server points. If two clients use different hashes they disagree on every key."},{"from":"Ring","to":"Ring","text":"binary search: first point >= h","note":"About log2(points) comparisons, then wrap to the start if h is past the last point."},{"from":"Ring","to":"Client","text":"server","ret":true,"note":"The owner of that point."},{"from":"Client","to":"Server","text":"GET key","note":"A direct request. The only shared state is the list of servers."},{"from":"Server","to":"Client","text":"value or miss","ret":true,"note":"A miss after a membership change is expected for the moved keys, about 1/N of them."}]},{"type":"scenario","title":"Run it","lede":"These steps were produced by running ring.mjs. Each change is applied to a ring and to mod N, so you can count what each one moves. Changed rows are highlighted.","steps":[{"title":"Three servers","call":"new HashRing([\"A\",\"B\",\"C\"], 100)","note":"Each server is hashed onto the circle 100 times. The table shows which server owns each of twelve keys.","state":{"user:0":"C","user:1":"B","user:2":"C","user:3":"C","user:4":"A","user:5":"B","user:6":"A","user:7":"B","user:8":"A","user:9":"B","user:10":"A","user:11":"A","moved this step, ring":"-","moved this step, mod N":"-"}},{"title":"Look up a key","call":"ring.lookup(\"user:7\")","result":"B","note":"Hash the key, binary-search for the first server point at or after it, wrap past the end. About log2(300) = 9 comparisons.","state":{"user:0":"C","user:1":"B","user:2":"C","user:3":"C","user:4":"A","user:5":"B","user:6":"A","user:7":"B","user:8":"A","user:9":"B","user:10":"A","user:11":"A","moved this step, ring":"-","moved this step, mod N":"-"}},{"title":"Add server D","call":"ring.add(\"D\")  // and mod.add(\"D\")","result":"added","note":"Every key the ring moved went to D. No key moved between A, B and C. Mod N, given the same change, reshuffled most keys between the old servers too.","state":{"user:0":"D","user:1":"B","user:2":"D","user:3":"D","user:4":"A","user:5":"B","user:6":"A","user:7":"B","user:8":"D","user:9":"B","user:10":"D","user:11":"A","moved this step, ring":"5 of 12","moved this step, mod N":"8 of 12"}},{"title":"Server B dies","call":"ring.remove(\"B\")  // and mod.remove(\"B\")","result":"removed","note":"The ring moves only B's keys, spread over the survivors because B's 100 points were scattered. Mod N moves keys that never touched B.","state":{"user:0":"D","user:1":"A","user:2":"D","user:3":"D","user:4":"A","user:5":"C","user:6":"A","user:7":"C","user:8":"D","user:9":"D","user:10":"D","user:11":"A","moved this step, ring":"4 of 12","moved this step, mod N":"10 of 12"}},{"title":"One key gets hot","call":"for 10,000 requests: ring.lookup(\"user:7\")","result":"all 10,000 go to C","note":"The weak point. Consistent hashing spreads keys, not traffic. A hot key stays on one server no matter how many servers you add. Fix it above the ring: replicate that key, or split it into user:7#1..k.","state":{"user:0":"D","user:1":"A","user:2":"D","user:3":"D","user:4":"A","user:5":"C","user:6":"A","user:7":"C","user:8":"D","user:9":"D","user:10":"D","user:11":"A","moved this step, ring":"-","moved this step, mod N":"-"}},{"title":"Empty ring","call":"new HashRing([]).lookup(\"user:1\")","result":"Error: ring is empty","note":"With no servers there is no owner. The caller must treat this as an outage, not as a cache miss.","state":{"user:0":"D","user:1":"A","user:2":"D","user:3":"D","user:4":"A","user:5":"C","user:6":"A","user:7":"C","user:8":"D","user:9":"D","user:10":"D","user:11":"A","moved this step, ring":"-","moved this step, mod N":"-"}}]},{"type":"code","title":"The code","lede":"The exact file that produced the scenario and both measured charts.","files":[{"name":"ring.mjs","src":"// Reference implementation. The page runs this file to produce its scenario and its\n// measured chart, and shows this same file in the code tab, so what you read is what ran.\n\n// 32-bit FNV-1a, then a murmur3 finaliser so nearby strings land far apart.\nexport function hash(str) {\n  let h = 0x811c9dc5;\n  for (let i = 0; i \u003c str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }\n  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;\n  return h >>> 0;\n}\n\n// The naive way: server = hash(key) mod N. Change N and almost every key moves.\nexport class ModuloSharding {\n  constructor(servers) { this.servers = [...servers]; }\n  add(server) { this.servers.push(server); }\n  remove(server) { this.servers = this.servers.filter((s) => s !== server); }\n  lookup(key) { return this.servers[hash(key) % this.servers.length]; }\n}\n\n// Consistent hashing: servers and keys hash onto the same circle of 2^32 points.\n// A key belongs to the first server point clockwise from it. Each server is placed\n// `vnodes` times, so its share of the circle is the sum of many small arcs.\nexport class HashRing {\n  constructor(servers = [], vnodes = 100) {\n    this.vnodes = vnodes;\n    this.points = []; // sorted by pos: { pos, server }\n    for (const s of servers) this.add(s);\n  }\n  add(server) {\n    for (let i = 0; i \u003c this.vnodes; i++) this.points.push({ pos: hash(`${server}#${i}`), server });\n    this.points.sort((a, b) => a.pos - b.pos);\n  }\n  remove(server) {\n    this.points = this.points.filter((p) => p.server !== server);\n  }\n  lookup(key) {\n    if (!this.points.length) throw new Error(\"ring is empty\");\n    const h = hash(key);\n    let lo = 0, hi = this.points.length; // first point with pos >= h\n    while (lo \u003c hi) { const mid = (lo + hi) >> 1; if (this.points[mid].pos \u003c h) lo = mid + 1; else hi = mid; }\n    return this.points[lo === this.points.length ? 0 : lo].server; // past the end wraps to the start\n  }\n}\n\n// Helpers the page uses to measure the two properties that matter.\nexport function placement(router, keys) {\n  const out = {};\n  for (const k of keys) out[k] = router.lookup(k);\n  return out;\n}\n\nexport function moved(before, after) {\n  return Object.keys(before).filter((k) => before[k] !== after[k]).length;\n}\n\n// Busiest server's key count divided by the average. 1.0 is perfectly even.\nexport function imbalance(router, keys, servers) {\n  const count = Object.fromEntries(servers.map((s) => [s, 0]));\n  for (const k of keys) count[router.lookup(k)]++;\n  return Math.max(...Object.values(count)) / (keys.length / servers.length);\n}\n"}]},{"type":"tradeoffs","title":"Decisions","items":[{"question":"How many virtual nodes per server?","options":[{"name":"1","pros":["Tiny ring"],"cons":["Busiest server carries more than twice its share (see the chart)","A dead server dumps all its keys on one neighbour"]},{"name":"100 to 200","pick":true,"pros":["Busiest server about 10 to 15% above average","A dead server's keys spread over all survivors"],"cons":["A few thousand points per client. Negligible."]},{"name":"1000+","pros":["Slightly more even"],"cons":["Memory and rebuild time grow 10x for a few percent"]}],"why":"The load chart flattens after about 100. Weighted servers are easy too: give a bigger machine more points."},{"question":"Ring, rendezvous hashing, or jump hash?","options":[{"name":"Ring with virtual nodes","pick":true,"pros":["Any server can join or leave, by name","Weights by point count","O(log points) lookup"],"cons":["Needs virtual nodes to be even","Memory per client"]},{"name":"Rendezvous (highest random weight)","pros":["Even without virtual nodes","Very simple"],"cons":["O(N) hashes per lookup, slow past a few hundred servers"]},{"name":"Jump hash","pros":["No memory, perfectly even, fast"],"cons":["Servers must be numbered 0..N-1","Can only add or remove the last one, so a random failure is not handled"]}],"why":"Cache clusters lose arbitrary servers, which rules out jump hash. The ring scales to large clusters where rendezvous gets slow."}]},{"type":"failures","title":"Where it still goes wrong","items":[{"what":"A hot key","effect":"One key's traffic lands on one server however many you add. Consistent hashing balances keys, not requests.","mitigation":"Replicate the hot key to the next k servers on the ring and read from any, or split it into sub-keys."},{"what":"Clients disagree on membership","effect":"Silent. A client with an old server list reads from the wrong server, misses, and writes there. Two copies drift apart and nothing errors.","mitigation":"One source of truth for membership (a config service or gossip with versions), and clients refuse to route with a stale version."},{"what":"Different hash functions","effect":"A Python client and a Go client that hash differently agree on nothing. Every key lives in two places.","mitigation":"Pin the hash function and the point naming (`server#i`) in a shared spec, with test vectors."},{"what":"A server flaps","effect":"Each leave and rejoin moves 1/N of keys twice. A flapping server keeps a slice of the cache permanently cold.","mitigation":"Remove a server only after it has been down for a while, and add it back slowly."}]},{"type":"qa","title":"What an interviewer asks next","items":[{"q":"Why is mod N so bad if the hash is uniform?","a":["Uniform spread is not the issue. Stability is. A key keeps its server only if hash mod N equals hash mod N+1, which happens for about 1 in N+1 keys. The other N/(N+1) all miss at once."]},{"q":"How do you replicate data on a ring?","a":["Walk clockwise from the key and take the first R distinct servers. That is what Dynamo and Cassandra do. Skip points that belong to a server you already picked, or two replicas can land on the same machine."]},{"q":"How do you add a big server next to small ones?","a":["Give it more virtual nodes. Its share of the circle is proportional to its point count, so twice the points is about twice the keys."]},{"q":"What happens to keys while a new server warms up?","a":["They miss on the new server and are fetched from the database. To soften it, read from the old owner on a miss during a warm-up window, or copy the moving arcs before switching ownership."]}]}]}</script>
+<script id="spec" type="application/json">{"kind":"concept","title":"Consistent hashing","subtitle":"How a cluster decides which server owns a key, and why adding a server should not move every key you have.","idea":"With hash mod N, changing N moves almost every key. Put servers and keys on the same circle and a change moves only the keys next to the server that changed: about 1/N of them.","sections":[{"type":"text","title":"The problem","body":["You have a cluster of cache servers and want each key (say, a user id) stored on exactly one of them, chosen without asking anyone. A **hash** turns any key into a big, random-looking number, always the same for the same key. The obvious rule is `server = hash(key) mod N`, the remainder after dividing by the number of servers N. It spreads keys evenly and costs nothing.","Then you add a server. N changes, so `hash(key) mod N` changes for almost every key. Each one now looks on the wrong server, misses, and falls through to the database. Adding capacity has just caused an outage.","Consistent hashing fixes this. Hash servers and keys onto the same circle. A key belongs to the first server clockwise from it. A new server takes over only the arcs just before its points, so only those keys move."]},{"type":"estimation","title":"What a change costs","lede":"Drag the assumptions. The charts below follow the same sliders.","inputs":[{"id":"servers","label":"Servers in the cluster","value":10,"min":2,"max":100,"step":1},{"id":"keys","label":"Keys stored","value":100000000,"min":10000,"max":10000000000,"log":true,"fmt":"si"},{"id":"vnodes","label":"Virtual nodes per server","value":100,"min":1,"max":1000,"log":true,"fmt":"int"},{"id":"rereadHours","label":"Moved keys are read again within","value":1,"min":0.25,"max":24,"step":0.25,"unit":"hours"}],"rows":[{"id":"modMoves","label":"Keys moved by adding one server, mod N","expr":"=p.keys*p.servers/(p.servers+1)","fmt":"si","why":"A key stays put only if its hash gives the same answer mod N and mod N+1: about 1 in N+1."},{"id":"ringMoves","label":"Keys moved by adding one server, ring","expr":"=p.keys/(p.servers+1)","fmt":"si","why":"Only the new server's share. That is the minimum any scheme can move, since the new server must own something."},{"id":"factor","label":"How many times more mod N moves","expr":"=r.modMoves/r.ringMoves","fmt":"int","unit":"x","why":"Exactly N. The bigger the cluster, the worse mod N gets."},{"id":"missMod","label":"Extra database reads after the change, mod N","expr":"=r.modMoves/(p.rereadHours*3600)","fmt":"si","unit":"reads/s","why":"Every moved key misses once and is read from the database. This lands on top of normal traffic."},{"id":"missRing","label":"Extra database reads after the change, ring","expr":"=r.ringMoves/(p.rereadHours*3600)","fmt":"si","unit":"reads/s"},{"id":"points","label":"Points on the ring","expr":"=p.servers*p.vnodes","fmt":"int","why":"Servers times virtual nodes. Every client keeps this sorted list."},{"id":"ringBytes","label":"Ring size in each client's memory","expr":"=r.points*16","fmt":"bytes","why":"About 16 bytes per point: a 4-byte position and a reference to the server."},{"id":"steps","label":"Comparisons per lookup","expr":"=ceil(log2(r.points))","fmt":"int","why":"Binary search over the sorted points. Cheap at any realistic size."}]},{"type":"chart","title":"Keys that move when one server joins","lede":"Measured by running ring.mjs on 20,000 keys at each cluster size. Hover for exact values. Drag the server count above to move the marker.","x":{"label":"Servers before the change","values":[2,3,4,5,6,8,10,12,16,20,25,32,40,50,64,80,100],"log":true,"param":"servers","fmt":"int"},"y":{"label":"Share of keys that move","fmt":"pct","min":0,"max":1},"series":[{"label":"mod N, measured","y":[0.6672,0.75025,0.799,0.83695,0.863,0.89175,0.90585,0.91955,0.943,0.9531,0.96305,0.97055,0.97465,0.98105,0.98425,0.9875,0.99065]},{"label":"Ring, measured","y":[0.37755,0.26775,0.2045,0.17495,0.14245,0.11215,0.08685,0.07245,0.04895,0.045,0.0348,0.02335,0.02105,0.0159,0.01365,0.01115,0.0086]},{"label":"Ideal, 1/(N+1)","expr":"=1/(x+1)"}],"note":"Mod N heads towards 100% as the cluster grows. The ring tracks the ideal line. It wobbles around it because 100 virtual nodes give the new server a share that is close to 1/(N+1), not exactly that."},{"type":"chart","title":"How even is the load","lede":"Measured with 10 servers and 50,000 keys, averaged over 8 different sets of server names.","x":{"label":"Virtual nodes per server","values":[1,2,3,5,10,20,30,50,100,200,300,500,1000],"log":true,"param":"vnodes","fmt":"int"},"y":{"label":"Busiest server's keys ÷ average","min":1},"series":[{"label":"Busiest ÷ average, measured","y":[2.327,2.003,1.864,1.625,1.553,1.331,1.266,1.193,1.15,1.103,1.095,1.07,1.061]}],"note":"With one point per server, arcs are random lengths and the busiest server holds more than twice its share. Each server's load is a sum of many small arcs, so it evens out roughly as 1/√(virtual nodes). Past a few hundred, more points cost memory and buy little."},{"type":"sequence","title":"Finding a key's server","hint":"Press play. Nothing here talks to a coordinator: every client computes the same answer from the same ring.","actors":["Client","Ring","Server"],"messages":[{"from":"Client","to":"Ring","text":"lookup(key)","note":"The ring is a sorted array held by each client (or each proxy), not a service."},{"from":"Ring","to":"Ring","text":"h = hash(key)","note":"The same hash function as the server points. If two clients use different hashes they disagree on every key."},{"from":"Ring","to":"Ring","text":"binary search: first point >= h","note":"About log2(points) comparisons, then wrap to the start if h is past the last point."},{"from":"Ring","to":"Client","text":"server","ret":true,"note":"The owner of that point."},{"from":"Client","to":"Server","text":"GET key","note":"A direct request. The only shared state is the list of servers."},{"from":"Server","to":"Client","text":"value or miss","ret":true,"note":"A miss after a membership change is expected for the moved keys, about 1/N of them."}]},{"type":"scenario","title":"Run it","lede":"These steps were produced by running ring.mjs. Each change is applied to a ring and to mod N, so you can count what each one moves. Changed rows are highlighted.","steps":[{"title":"Three servers","call":"new HashRing([\"A\",\"B\",\"C\"], 100)","result":"3 servers, 300 points","note":"Each server is hashed onto the circle 100 times. The table shows which server owns each of twelve keys.","state":{"user:0":"C","user:1":"B","user:2":"C","user:3":"C","user:4":"A","user:5":"B","user:6":"A","user:7":"B","user:8":"A","user:9":"B","user:10":"A","user:11":"A","moved this step, ring":"-","moved this step, mod N":"-"}},{"title":"Look up a key","call":"ring.lookup(\"user:7\")","result":"B","note":"Hash the key, binary-search for the first server point at or after it, wrap past the end. About log2(300) = 9 comparisons.","state":{"user:0":"C","user:1":"B","user:2":"C","user:3":"C","user:4":"A","user:5":"B","user:6":"A","user:7":"B","user:8":"A","user:9":"B","user:10":"A","user:11":"A","moved this step, ring":"-","moved this step, mod N":"-"}},{"title":"Add server D","call":"ring.add(\"D\")  // and mod.add(\"D\")","result":"added","note":"Every key the ring moved went to D. No key moved between A, B and C. Mod N, given the same change, reshuffled most keys between the old servers too.","state":{"user:0":"D","user:1":"B","user:2":"D","user:3":"D","user:4":"A","user:5":"B","user:6":"A","user:7":"B","user:8":"D","user:9":"B","user:10":"D","user:11":"A","moved this step, ring":"5 of 12","moved this step, mod N":"8 of 12"}},{"title":"Server B dies","call":"ring.remove(\"B\")  // and mod.remove(\"B\")","result":"removed","note":"The ring moves only B's keys, spread over the survivors because B's 100 points were scattered. Mod N moves keys that never touched B.","state":{"user:0":"D","user:1":"A","user:2":"D","user:3":"D","user:4":"A","user:5":"C","user:6":"A","user:7":"C","user:8":"D","user:9":"D","user:10":"D","user:11":"A","moved this step, ring":"4 of 12","moved this step, mod N":"10 of 12"}},{"title":"One key gets hot","call":"for 10,000 requests: ring.lookup(\"user:7\")","result":"all 10,000 go to C","note":"The weak point. Consistent hashing spreads keys, not traffic. A hot key stays on one server no matter how many servers you add. Fix it above the ring: replicate that key, or split it into user:7#1..k.","state":{"user:0":"D","user:1":"A","user:2":"D","user:3":"D","user:4":"A","user:5":"C","user:6":"A","user:7":"C","user:8":"D","user:9":"D","user:10":"D","user:11":"A","moved this step, ring":"-","moved this step, mod N":"-"}},{"title":"Empty ring","call":"new HashRing([]).lookup(\"user:1\")","result":"Error: ring is empty","note":"With no servers there is no owner. The caller must treat this as an outage, not as a cache miss.","state":{"user:0":"D","user:1":"A","user:2":"D","user:3":"D","user:4":"A","user:5":"C","user:6":"A","user:7":"C","user:8":"D","user:9":"D","user:10":"D","user:11":"A","moved this step, ring":"-","moved this step, mod N":"-"}}]},{"type":"code","title":"The code","lede":"The exact file that produced the scenario and both measured charts.","files":[{"name":"ring.mjs","src":"// Reference implementation. The page runs this file to produce its scenario and its\n// measured chart, and shows this same file in the code tab, so what you read is what ran.\n\n// 32-bit FNV-1a, then a murmur3 finaliser so nearby strings land far apart.\nexport function hash(str) {\n  let h = 0x811c9dc5;\n  for (let i = 0; i \u003c str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }\n  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;\n  return h >>> 0;\n}\n\n// The naive way: server = hash(key) mod N. Change N and almost every key moves.\nexport class ModuloSharding {\n  constructor(servers) { this.servers = [...servers]; }\n  add(server) { this.servers.push(server); }\n  remove(server) { this.servers = this.servers.filter((s) => s !== server); }\n  lookup(key) { return this.servers[hash(key) % this.servers.length]; }\n}\n\n// Consistent hashing: servers and keys hash onto the same circle of 2^32 points.\n// A key belongs to the first server point clockwise from it. Each server is placed\n// `vnodes` times, so its share of the circle is the sum of many small arcs.\nexport class HashRing {\n  constructor(servers = [], vnodes = 100) {\n    this.vnodes = vnodes;\n    this.points = []; // sorted by pos: { pos, server }\n    for (const s of servers) this.add(s);\n  }\n  add(server) {\n    for (let i = 0; i \u003c this.vnodes; i++) this.points.push({ pos: hash(`${server}#${i}`), server });\n    this.points.sort((a, b) => a.pos - b.pos);\n  }\n  remove(server) {\n    this.points = this.points.filter((p) => p.server !== server);\n  }\n  lookup(key) {\n    if (!this.points.length) throw new Error(\"ring is empty\");\n    const h = hash(key);\n    let lo = 0, hi = this.points.length; // first point with pos >= h\n    while (lo \u003c hi) { const mid = (lo + hi) >> 1; if (this.points[mid].pos \u003c h) lo = mid + 1; else hi = mid; }\n    return this.points[lo === this.points.length ? 0 : lo].server; // past the end wraps to the start\n  }\n}\n\n// Helpers the page uses to measure the two properties that matter.\nexport function placement(router, keys) {\n  const out = {};\n  for (const k of keys) out[k] = router.lookup(k);\n  return out;\n}\n\nexport function moved(before, after) {\n  return Object.keys(before).filter((k) => before[k] !== after[k]).length;\n}\n\n// Busiest server's key count divided by the average. 1.0 is perfectly even.\nexport function imbalance(router, keys, servers) {\n  const count = Object.fromEntries(servers.map((s) => [s, 0]));\n  for (const k of keys) count[router.lookup(k)]++;\n  return Math.max(...Object.values(count)) / (keys.length / servers.length);\n}\n"}]},{"type":"tradeoffs","title":"Decisions","items":[{"question":"How many virtual nodes per server?","options":[{"name":"1","pros":["Tiny ring"],"cons":["Busiest server carries more than twice its share (see the chart)","A dead server dumps all its keys on one neighbour"]},{"name":"100 to 200","pick":true,"pros":["Busiest server about 10 to 15% above average","A dead server's keys spread over all survivors"],"cons":["A few thousand points per client. Negligible."]},{"name":"1000+","pros":["Slightly more even"],"cons":["Memory and rebuild time grow 10x for a few percent"]}],"why":"The load chart flattens after about 100. Weighted servers are easy too: give a bigger machine more points."},{"question":"Ring, rendezvous hashing, or jump hash?","options":[{"name":"Ring with virtual nodes","pick":true,"pros":["Any server can join or leave, by name","Weights by point count","O(log points) lookup"],"cons":["Needs virtual nodes to be even","Memory per client"]},{"name":"Rendezvous (highest random weight)","pros":["Even without virtual nodes","Very simple"],"cons":["O(N) hashes per lookup, slow past a few hundred servers"]},{"name":"Jump hash","pros":["No memory, perfectly even, fast"],"cons":["Servers must be numbered 0..N-1","Can only add or remove the last one, so a random failure is not handled"]}],"why":"Cache clusters lose arbitrary servers, which rules out jump hash. The ring scales to large clusters where rendezvous gets slow."}]},{"type":"failures","title":"Where it still goes wrong","items":[{"what":"A hot key","effect":"One key's traffic lands on one server however many you add. Consistent hashing balances keys, not requests.","mitigation":"Replicate the hot key to the next k servers on the ring and read from any, or split it into sub-keys."},{"what":"Clients disagree on membership","effect":"Silent. A client with an old server list reads from the wrong server, misses, and writes there. Two copies drift apart and nothing errors.","mitigation":"One source of truth for membership (a config service or gossip with versions), and clients refuse to route with a stale version."},{"what":"Different hash functions","effect":"A Python client and a Go client that hash differently agree on nothing. Every key lives in two places.","mitigation":"Pin the hash function and the point naming (`server#i`) in a shared spec, with test vectors."},{"what":"A server flaps","effect":"Each leave and rejoin moves 1/N of keys twice. A flapping server keeps a slice of the cache permanently cold.","mitigation":"Remove a server only after it has been down for a while, and add it back slowly."}]},{"type":"qa","title":"What an interviewer asks next","items":[{"q":"Why is mod N so bad if the hash is uniform?","a":["Uniform spread is not the issue. Stability is. A key keeps its server only if hash mod N equals hash mod N+1, which happens for about 1 in N+1 keys. The other N/(N+1) all miss at once."]},{"q":"How do you replicate data on a ring?","a":["Walk clockwise from the key and take the first R distinct servers. That is what Dynamo and Cassandra do. Skip points that belong to a server you already picked, or two replicas can land on the same machine."]},{"q":"How do you add a big server next to small ones?","a":["Give it more virtual nodes. Its share of the circle is proportional to its point count, so twice the points is about twice the keys."]},{"q":"What happens to keys while a new server warms up?","a":["They miss on the new server and are fetched from the database. To soften it, read from the old owner on a miss during a warm-up window, or copy the moving arcs before switching ownership."]}]}]}</script>
 <script>/* sysdesign runtime. Renders a page from the JSON spec in <script id="spec">.
    No dependencies. Everything on the page is computed from the spec's own
    inputs and formulas, so numbers in prose, tables and the simulation agree. */
@@ -232,7 +260,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
 
   // ---------- helpers ----------
   function h(tag, attrs) {
-    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan|clipPath)$/.test(tag);
+    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan|clipPath|symbol|use|ellipse)$/.test(tag);
     var el = svg ? document.createElementNS(SVG, tag) : document.createElement(tag);
     if (attrs) for (var k in attrs) {
       var v = attrs[k];
@@ -245,6 +273,45 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
     for (var i = 2; i < arguments.length; i++) add(el, arguments[i]);
     return el;
   }
+  // ---------- icons ----------
+  // 24x24 pictograms. Classes (styled in style.css) carry the colours so both themes work:
+  // p = panel fill + ink stroke, k = solid ink, a = warm accent, g = green accent, n = stroke only.
+  var ICONS = {
+    phone: '<rect class="p" x="6" y="2" width="12" height="20" rx="2.5" stroke-width="1.6"/><rect class="m" x="8" y="5" width="8" height="12" rx="1" stroke-width="1.6"/><circle class="k" cx="12" cy="19.3" r="1" stroke-width="1.6"/>',
+    browser: '<rect class="p" x="2.5" y="4" width="19" height="16" rx="2" stroke-width="1.6"/><path class="n" d="M2.5 9h19" stroke-width="1.6"/><circle class="a" cx="5.5" cy="6.5" r=".9" stroke-width="1.6"/><circle class="g" cx="8.5" cy="6.5" r=".9" stroke-width="1.6"/>',
+    user: '<circle class="p" cx="12" cy="8" r="4" stroke-width="1.6"/><path class="p" d="M4 21c0-4.5 3.6-7 8-7s8 2.5 8 7z" stroke-width="1.6"/>',
+    server: '<rect class="p" x="3" y="3" width="18" height="7" rx="1.5" stroke-width="1.6"/><rect class="p" x="3" y="14" width="18" height="7" rx="1.5" stroke-width="1.6"/><circle class="g" cx="7" cy="6.5" r="1.2" stroke-width="1.6"/><circle class="g" cx="7" cy="17.5" r="1.2" stroke-width="1.6"/>',
+    worker: '<path class="p" d="M12 2l2 3 3.5-1 .5 3.6 3.4 1.2-1.6 3.2 1.6 3.2-3.4 1.2-.5 3.6-3.5-1-2 3-2-3-3.5 1-.5-3.6-3.4-1.2L4.1 12 2.5 8.8l3.4-1.2L6.4 4l3.5 1z" stroke-width="1.4"/><circle class="m" cx="12" cy="12" r="3.4" stroke-width="1.4"/>',
+    queue: '<rect class="p" x="2" y="7" width="5" height="10" rx="1" stroke-width="1.6"/><rect class="p" x="9.5" y="7" width="5" height="10" rx="1" stroke-width="1.6"/><rect class="a" x="17" y="7" width="5" height="10" rx="1" stroke-width="1.6"/>',
+    cache: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" stroke-width="1.6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3" stroke-width="1.6"/><path class="a" d="M13 9l-4 6h3l-1 4 4-6h-3z" stroke-width=".8"/>',
+    database: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" stroke-width="1.6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3" stroke-width="1.6"/><path class="n" d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" stroke-width="1.2"/>',
+    storage: '<path class="p" d="M3 8l2-4h14l2 4v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" stroke-width="1.6"/><path class="n" d="M3 8h18" stroke-width="1.6"/><rect class="a" x="9" y="11" width="6" height="3" rx="1" stroke-width="1.6"/>',
+    batch: '<rect class="p" x="3" y="13" width="18" height="7" rx="1.5" stroke-width="1.6"/><rect class="p" x="3" y="8" width="18" height="4" rx="1.2" stroke-width="1.6"/><rect class="a" x="3" y="3.5" width="18" height="3.5" rx="1.2" stroke-width="1.6"/>',
+    lock: '<path class="n" d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3" stroke-width="1.6"/><rect class="p" x="4.5" y="11" width="15" height="10" rx="2" stroke-width="1.6"/><circle class="a" cx="12" cy="16" r="1.5" stroke-width="1.6"/>',
+    globe: '<circle class="p" cx="12" cy="12" r="9" stroke-width="1.6"/><ellipse class="n" cx="12" cy="12" rx="4" ry="9" stroke-width="1.2"/><path class="n" d="M3 12h18" stroke-width="1.2"/><circle class="g" cx="12" cy="12" r="1.4" stroke-width="1.6"/>',
+    search: '<circle class="p" cx="10.5" cy="10.5" r="6.5" stroke-width="1.6"/><path class="n" d="M15.5 15.5L21 21" stroke-width="2.4"/><circle class="a" cx="10.5" cy="10.5" r="2" stroke-width="1.6"/>',
+    mail: '<rect class="p" x="2.5" y="5" width="19" height="14" rx="2" stroke-width="1.6"/><path class="n" d="M3 7l9 7 9-7" stroke-width="1.6"/><circle class="a" cx="18.5" cy="6" r="2.6" stroke-width="1.6"/>'
+  };
+  function iconFor(n) {
+    if (n.icon && ICONS[n.icon]) return n.icon;
+    var k = n.kind || "";
+    if (k === "clients") return "phone";
+    if (k === "cache") return "cache";
+    if (k === "store") return "database";
+    if (k === "queue") return "queue";
+    if (k.indexOf("batch") >= 0) return "batch";
+    return "server";
+  }
+  function iconDefs() {
+    var d = h("defs");
+    Object.keys(ICONS).forEach(function (name) {
+      var sy = h("symbol", { id: "ico-" + name, viewBox: "0 0 24 24" });
+      sy.innerHTML = ICONS[name];
+      d.appendChild(sy);
+    });
+    return d;
+  }
+  var iconsPlaced = false, afterAttach = []; // afterAttach: work that needs the page laid out (text measuring)
   function add(el, c) {
     if (c == null || c === false) return;
     if (Array.isArray(c)) c.forEach(function (x) { add(el, x); });
@@ -279,15 +346,23 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
   var cache = {};
   // Evaluate "=expr". Expressions read p (params), r (rows), m (simulation result) and,
   // inside a chart, x (the value on the horizontal axis).
-  function val(expr, extra, xv) {
+  function val(expr, extra, xv, keepNaN) {
     if (typeof expr !== "string" || expr.charAt(0) !== "=") return expr;
     var f = cache[expr];
     if (!f) {
       try { f = cache[expr] = new Function("p", "r", "m", "H", "x", "with(H){return (" + expr.slice(1) + ")}"); }
       catch (e) { fail("bad expression " + expr + ": " + e.message); f = cache[expr] = function () { return 0; }; }
     }
-    try { var v = f(S.p, S.r, extra || S.m, H, xv); return v == null || isNaN(v) && typeof v === "number" ? 0 : v; }
+    try { var v = f(S.p, S.r, extra || S.m, H, xv); return v == null || isNaN(v) && typeof v === "number" ? (keepNaN ? NaN : 0) : v; }
     catch (e) { fail("expression " + expr + ": " + e.message); return 0; }
+  }
+  // Like val(), but for numbers the reader sees: NaN or undefined stay NaN, so fmt shows "n/a".
+  // The simulator's own inputs keep val()'s 0 fallback.
+  function shownVal(expr, extra, xv) { return val(expr, extra, xv, true); }
+  // Put a formatted value in an element; a shown "n/a" is marked data-na so the checks can count it.
+  function put(el, text, shown) {
+    if (shown && text === "n/a") { el.textContent = ""; el.appendChild(h("span", { "data-na": "" }, text)); }
+    else el.textContent = text;
   }
   function fail(msg) { document.body.dataset.error = (document.body.dataset.error || "") + msg + " | "; }
   function fmt(v, f, unit) {
@@ -301,6 +376,8 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
     else s = si(v);
     return unit && f !== "bytes" && f !== "ms" && f !== "pct" ? s + " " + unit : s;
   }
+  // For values the reader sees from a shownVal: NaN reads "n/a". Built-in metrics keep showing NaN so check.mjs catches it.
+  function fmtShown(v, f, unit) { return typeof v === "number" && isNaN(v) ? "n/a" : fmt(v, f, unit); }
   function si(v) {
     var a = Math.abs(v);
     if (a >= 1e12) return (v / 1e12).toFixed(2).replace(/\.?0+$/, "") + "T";
@@ -476,7 +553,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
     var tb = h("table", { class: "rows" });
     (s.rows || []).forEach(function (row) {
       var td = h("td");
-      onChange(function () { td.textContent = fmt(val(row.expr), row.fmt, row.unit); });
+      onChange(function () { put(td, fmtShown(shownVal(row.expr), row.fmt, row.unit), true); });
       tb.appendChild(h("tr", null, h("td", null, row.label, row.why ? h("span", { class: "why", html: md(row.why) }) : null), td));
     });
     return [paras(s.body || []), h("div", { class: "est" }, inputs, h("div", { class: "card" }, h("h3", null, "Derived"), tb))];
@@ -541,7 +618,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
   builders.arch = function (s) {
     // Layout: columns follow the flow (depth from the sources) unless a node sets `col`;
     // rows stack within a column unless a node sets `row`. `group` puts nodes in a labelled lane.
-    var groups = s.groups || [], NW = 152, NH = 60, GX = 72, GY = groups.length ? 62 : 30, PAD = 20, TOP = groups.length ? 40 : PAD;
+    var groups = s.groups || [], NW = 152, NH = 68, GX = 72, GY = groups.length ? 62 : 30, PAD = 20, TOP = groups.length ? 40 : PAD;
     var nodes = s.nodes, by = {}, depth = {};
     nodes.forEach(function (n) { by[n.id] = n; depth[n.id] = 0; });
     for (var pass = 0; pass < nodes.length; pass++) s.edges.forEach(function (e) { depth[e.to] = Math.max(depth[e.to], depth[e.from] + 1); });
@@ -557,15 +634,17 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
     var W = PAD, Ht = PAD;
     nodes.forEach(function (n) { W = Math.max(W, n._x + NW + PAD); Ht = Math.max(Ht, n._y + NH + PAD + (groups.length ? 14 : 0)); });
     var svg = h("svg", { viewBox: "0 0 " + W + " " + Ht, role: "img", "aria-label": s.title || "architecture" });
-    var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g");
-    [laneG, edgeG, dotG, nodeG].forEach(function (g) { svg.appendChild(g); });
+    var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g"), tokG = h("g");
+    if (!iconsPlaced) { svg.appendChild(iconDefs()); iconsPlaced = true; }
+    [laneG, edgeG, dotG, nodeG, tokG].forEach(function (g) { svg.appendChild(g); });
+    var laneJobs = [];
     groups.forEach(function (gr) {
       var mem = nodes.filter(function (n) { return n.group === gr.id; });
       if (!mem.length) return;
       var x0 = Math.min.apply(null, mem.map(function (n) { return n._x; })) - 14, y0 = Math.min.apply(null, mem.map(function (n) { return n._y; })) - 30;
       var x1 = Math.max.apply(null, mem.map(function (n) { return n._x + NW; })) + 14, y1 = Math.max.apply(null, mem.map(function (n) { return n._y + NH; })) + 12;
-      laneG.appendChild(h("rect", { class: "lane", x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }));
-      laneG.appendChild(h("text", { class: "lanel", x: x0 + 12, y: y0 + 18 }, gr.label, gr.note ? h("tspan", { class: "lanen" }, "  " + gr.note) : null));
+      var lr = h("rect", { class: "lane", x: x0, y: y0, width: x1 - x0, height: y1 - y0, rx: 10 }), lt = h("text", { class: "lanel", x: x0 + 12, y: y0 + 18 }, gr.label, gr.note ? h("tspan", { class: "lanen" }, "  " + gr.note) : null);
+      laneG.appendChild(lr); laneG.appendChild(lt); laneJobs.push({ rect: lr, text: lt, x0: x0 });
     });
     // Edges leave the side facing their target: right to left, left to right, or top to bottom.
     function route(a, b) {
@@ -589,16 +668,43 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
       edgeG.appendChild(path); if (lab) edgeG.appendChild(lab);
       return { path: path, len: 0, dots: [], e: e, lab: lab };
     });
-    var nodeEls = {};
+    var nodeEls = {}, labelJobs = [];
     var selected = null, detail = h("dl", { class: "detail", style: "display:none" });
     nodes.forEach(function (n) {
-      var g = h("g", { class: "node", tabindex: 0, role: "button", "aria-label": n.label }), sub = h("text", { class: "s", x: n._x + 12, y: n._y + 41 }), ub = h("rect", { class: "ubar", x: n._x + 10, y: n._y + NH - 9, height: 3, width: 0, rx: 1.5 });
+      var g = h("g", { class: "node", tabindex: 0, role: "button", "aria-label": n.label }), sub = h("text", { class: "s", x: n._x + 12, y: n._y + 53 }), ub = h("rect", { class: "ubar", x: n._x + 10, y: n._y + NH - 9, height: 3, width: 0, rx: 1.5 });
       g.appendChild(h("rect", { class: "box", x: n._x, y: n._y, width: NW, height: NH, style: "--u:0" }));
-      g.appendChild(h("text", { x: n._x + 12, y: n._y + 23 }, n.label)); g.appendChild(sub); g.appendChild(ub);
+      g.appendChild(h("use", { class: "ico", href: "#ico-" + iconFor(n), x: n._x + 10, y: n._y + 9, width: 26, height: 26, "aria-hidden": "true" }));
+      var lx = n._x + 44, nl = h("text", { class: "nl", x: lx, y: n._y + 27 }, n.label);
+      g.appendChild(nl); g.appendChild(sub); g.appendChild(ub);
+      labelJobs.push({ el: nl, label: n.label, x: lx, y: n._y });
       var pick = function () { selected = selected === n.id ? null : n.id; paintDetail(); paintSel(); };
       g.addEventListener("click", pick); g.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } });
       nodeG.appendChild(g); nodeEls[n.id] = { g: g, sub: sub, ub: ub, box: g.firstChild };
     });
+    // Labels are measured once the SVG is in the page; one that overflows wraps to two 13px lines.
+    function fitLabels() {
+      // a lane is as wide as its boxes, or as its label when that is longer; the SVG grows to hold it
+      laneJobs.forEach(function (j) {
+        var need = j.text.getBBox().width + 24;
+        if (need > +j.rect.getAttribute("width")) j.rect.setAttribute("width", need);
+        var right = j.x0 + Math.max(need, +j.rect.getAttribute("width")) + 4;
+        if (right > W) { W = right; svg.setAttribute("viewBox", "0 0 " + W + " " + Ht); }
+      });
+      labelJobs.forEach(function (j) {
+        if (j.el.getComputedTextLength() <= NW - 54) return;
+        var words = j.label.split(" "), best = 1, bestGap = Infinity, mid = j.label.length / 2, pos = 0;
+        for (var i = 0; i < words.length - 1; i++) {
+          pos += words[i].length;
+          if (Math.abs(pos - mid) < bestGap) { bestGap = Math.abs(pos - mid); best = i + 1; }
+          pos += 1;
+        }
+        j.el.textContent = ""; j.el.setAttribute("class", "nl two");
+        [words.slice(0, best).join(" "), words.slice(best).join(" ")].forEach(function (line, k) {
+          j.el.appendChild(h("tspan", { x: j.x, y: j.y + 21 + k * 15 }, line));
+        });
+      });
+    }
+    afterAttach.push(fitLabels);
     var hlNodes = {}, hlEdges = {}; // what the current walkthrough step lights up
     function paintSel() {
       nodes.forEach(function (n) { nodeEls[n.id].g.setAttribute("class", "node" + (selected === n.id ? " sel" : "") + (hlNodes[n.id] ? " hl" : "") + (S.m && S.m.nodes[n.id].total === 0 ? " dead" : "")); });
@@ -609,8 +715,9 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
       if (!selected) { detail.style.display = "none"; return; }
       var n = by[selected], r = S.m && S.m.nodes[selected]; detail.style.display = "grid";
       var rows = [["Role", n.role], ["Why it's here", n.why], ["Scales by", n.scale], ["Fails by", n.fails]];
-      if (r) rows.push(["Load now", si(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + si(r.total) + " capacity (" + Math.round(r.util * 100) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + si(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + si(r.growth) + "/s" : "")]);
-      rows.forEach(function (x) { if (x[1]) { detail.appendChild(h("dt", null, x[0])); detail.appendChild(h("dd", { html: md(x[1]) })); } });
+      var NA = "\uE000n/a\uE001", sn = function (v) { return typeof v === "number" && !isNaN(v) ? si(v) : NA; };
+      if (r) rows.push(["Load now", r.total === 0 ? "down, " + sn(r.inflow) + " req/s arriving with no capacity to take them" : sn(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + sn(r.total) + " capacity (" + (isNaN(r.util) ? NA : Math.round(r.util * 100)) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + sn(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + sn(r.growth) + "/s" : "")]);
+      rows.forEach(function (x) { if (x[1]) { detail.appendChild(h("dt", null, x[0])); detail.appendChild(h("dd", { html: md(x[1]).replace(/\uE000([^\uE001]*)\uE001/g, "<span data-na>$1</span>") })); } });
     }
     var metricEls = {}, metricBar = h("div", { class: "metrics" });
     var defs = [
@@ -621,7 +728,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
       { id: "bn", label: function (m) { return m.bottleneck ? "Busiest: " + by[m.bottleneck].label : "Busiest: none capped"; }, get: function (m) { var r = m.bottleneck && m.nodes[m.bottleneck]; return !r ? "n/a" : r.total === 0 ? "down" : Math.round(r.util * 100) + "%"; }, cls: function (m) { if (!m.bottleneck) return ""; var u = m.nodes[m.bottleneck].util; return u >= 1 ? "bad" : u > 0.8 ? "warn" : ""; } }
     ];
     (s.metrics || []).forEach(function (x, i) {
-      defs.push({ id: "x" + i, label: x.label, get: function (m) { return fmt(val(x.expr, m), x.fmt, x.unit); },
+      defs.push({ id: "x" + i, label: x.label, shown: true, get: function (m) { return fmtShown(shownVal(x.expr, m), x.fmt, x.unit); },
         cls: function (m) { return x.bad && val(x.bad, m) ? "bad" : x.warn && val(x.warn, m) ? "warn" : ""; } });
     });
     defs.forEach(function (d) { var b = h("b"), lab = h("span", null, typeof d.label === "string" ? d.label : ""), box = h("div", { class: "metric" }, b, lab); metricEls[d.id] = { b: b, box: box, d: d, lab: lab }; metricBar.appendChild(box); });
@@ -642,7 +749,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
       var m = S.m; if (!m) return;
       nodes.forEach(function (n) {
         var r = m.nodes[n.id], el = nodeEls[n.id];
-        el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util * 0.35, 0, 0.9));
+        el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util < 0.75 ? 0 : r.util * 0.35, 0, 0.9));
         var txt = r.total === Infinity ? (n.kind || "") : r.total === 0 ? "DOWN" : r.inst + "× " + si(r.cap) + "/s";
         if (n.hit != null) txt = Math.round(r.hit * 100) + "% hit";
         if (n.rps != null && r.total === Infinity) txt = si(r.inflow) + "/s";
@@ -651,7 +758,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
         el.ub.setAttribute("width", w); el.ub.setAttribute("class", "ubar" + (r.util >= 1 ? " hot" : r.util > 0.8 ? " warn" : ""));
       });
       paintSel(); paintDetail();
-      defs.forEach(function (d) { var e = metricEls[d.id]; e.b.textContent = d.get(m); if (typeof d.label === "function") e.lab.textContent = d.label(m); e.box.className = "metric " + (d.cls ? d.cls(m) : ""); });
+      defs.forEach(function (d) { var e = metricEls[d.id]; put(e.b, d.get(m), d.shown); if (typeof d.label === "function") e.lab.textContent = d.label(m); e.box.className = "metric " + (d.cls ? d.cls(m) : ""); });
       // edge widths and particle counts follow flow
       edgeEls.forEach(function (E, k) {
         var f = m.edges[k] ? m.edges[k].flow : 0;
@@ -662,6 +769,22 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
         if (!E.len) E.len = E.path.getTotalLength();
       });
     }
+    // ----- walkthrough tokens: a labelled dot that rides each lit arrow, in step path order -----
+    var toks = [], TOK_MS = 2400;
+    function placeToken(T, u) {
+      var L = T.E.len || (T.E.len = T.E.path.getTotalLength()), p = T.E.path.getPointAtLength((T.rev ? 1 - u : u) * L);
+      T.g.setAttribute("transform", "translate(" + p.x + " " + p.y + ")");
+    }
+    function clearTokens() { toks.forEach(function (T) { tokG.removeChild(T.g); }); toks = []; }
+    function addToken(k, from, to, label, now) {
+      var E = edgeEls[k], g = h("g", { class: "tok", "data-from": from, "data-to": to }), txt = h("text", { class: "toklabel", y: -14, "text-anchor": "middle" }, label);
+      var rect = h("rect", { class: "tokpill", rx: 8, ry: 8, height: 16, y: -22 });
+      g.appendChild(h("circle", { class: "tokdot", r: 5 })); g.appendChild(rect); g.appendChild(txt); tokG.appendChild(g);
+      var w = txt.getComputedTextLength() + 14;
+      rect.setAttribute("width", w); rect.setAttribute("x", -w / 2); txt.setAttribute("y", -10);
+      var T = { g: g, E: E, rev: E.e.from !== from, t0: now };
+      toks.push(T); placeToken(T, reduce ? 0.5 : 0);
+    }
     function frame(now) {
       var t = (now - t0) / 1000;
       edgeEls.forEach(function (E) {
@@ -670,32 +793,101 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
         var speed = 110 / Math.max(E.len, 1);
         E.dots.forEach(function (d, i) { var u = ((t * speed) + i / E.dots.length) % 1, p = E.path.getPointAtLength(u * E.len); d.setAttribute("cx", p.x); d.setAttribute("cy", p.y); });
       });
+      toks.forEach(function (T) { placeToken(T, ((now - T.t0) / TOK_MS) % 1); });
       requestAnimationFrame(frame);
     }
     onChange(paint);
     if (!reduce) requestAnimationFrame(frame);
     var stage = h("div", { class: "stage" }, svg);
     // ----- walkthroughs: step through how a request or an event moves through the system -----
-    var flowBar = null, walk = null;
+    var flowBar = null, walk = null, fpic = null;
     if ((s.flows || []).length) {
       var flowBtns = [], cur = null, step = 0, wText = h("div", { class: "wtext" }), wCount = h("span", { class: "wcount" });
       var back = h("button", { class: "chip", onclick: function () { if (step > 0) { step--; show(); } } }, "Back");
       var next = h("button", { class: "chip", onclick: function () { if (step < cur.steps.length - 1) { step++; show(); } else stopWalk(); } }, "Next");
+      fpic = h("div", { class: "fpic", style: "display:none" }); var fhs = [];
       walk = h("div", { class: "walk", style: "display:none" }, h("div", { class: "wctl" }, wCount, back, next, h("button", { class: "chip", onclick: function () { stopWalk(); } }, "Exit")), wText);
       function edgeBetween(a, b) {
         for (var k = 0; k < s.edges.length; k++) { var e = s.edges[k]; if ((e.from === a && e.to === b) || (e.from === b && e.to === a)) return k; }
         return -1;
       }
-      function show() {
-        var st = cur.steps[step], path = st.path || [];
-        hlNodes = {}; hlEdges = {};
-        path.forEach(function (id, i) { hlNodes[id] = 1; if (i) { var k = edgeBetween(path[i - 1], id); if (k >= 0) hlEdges[k] = 1; } });
+      function carryOf(st) { return st.carry || String(st.text || "").replace(/\*\*/g, "").split(/\s+/).filter(Boolean).slice(0, 3).join(" "); }
+      // ----- the walkthrough as one sequence picture: a lifeline per box, an arrow per hop -----
+      var fpUid = 0, fpMk = "", FL_GAP = 130, FL_TOP = 78, FL_ROW = 46;
+      function plain(t) { return String(t || "").replace(/\*\*/g, ""); }
+      function flowPicture(flow) {
+        var mkId = fpMk = "fparrow" + (++fpUid), ids = [], rows = [];
+        flow.steps.forEach(function (st, i) {
+          var path = st.path || [];
+          path.forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+          if (path.length === 1) rows.push({ i: i, a: path[0], b: path[0], note: 1 });
+          for (var j = 1; j < path.length; j++) rows.push({ i: i, a: path[j - 1], b: path[j] });
+        });
+        var W = Math.max(ids.length, 1) * FL_GAP, H = FL_TOP + rows.length * FL_ROW + 12;
+        var broken = window.__sysdesign_test && window.__sysdesign_test.breakPicture, skipped = false;
+        var x = function (id) { return FL_GAP / 2 + ids.indexOf(id) * FL_GAP; };
+        var g = h("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "img", "aria-label": flow.steps.map(function (st) { return plain(st.text); }).join(" Then ") });
+        var mk = function (id, cls) { return h("marker", { id: id, viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, h("path", { class: cls, d: "M0,0 L10,5 L0,10 z" })); };
+        g.appendChild(h("defs", {}, mk(mkId, "fpmk"), mk(mkId + "c", "fpmk fpmkcur")));
+        ids.forEach(function (id) {
+          var n = (s.nodes || []).filter(function (q) { return q.id === id; })[0] || { id: id, label: id }, cx = x(id);
+          var fl = h("g", { class: "fl", "data-node": id });
+          fl.appendChild(h("use", { href: "#ico-" + iconFor(n), x: cx - 15, y: 8, width: 30, height: 30, "aria-hidden": "true" }));
+          fl.appendChild(h("text", { class: "fllabel", x: cx, y: 54, "text-anchor": "middle" }, n.label || id));
+          fl.appendChild(h("line", { class: "flline", x1: cx, y1: 62, x2: cx, y2: H - 4 }));
+          g.appendChild(fl);
+        });
+        fhs = [];
+        fpic.innerHTML = ""; fpic.style.display = s.flowPicture === false ? "none" : ""; fpic.appendChild(g); // attached, so text can be measured
+        rows.forEach(function (r, k) {
+          var y = FL_TOP + 14 + k * FL_ROW, st = flow.steps[r.i], lab = (r.i + 1) + " \u00b7 " + carryOf(st);
+          var el = h("g", { class: "fh" + (r.note ? " note" : ""), "data-step": r.i, onclick: function () { show(r.i); } });
+          var band = h("rect", { class: "fhband", x: Math.min(x(r.a), x(r.b)) - 14, y: y - 22, width: Math.abs(x(r.a) - x(r.b)) + 28, height: FL_ROW - 6, rx: 6 });
+          el.appendChild(band);
+          if (r.note) {
+            el.appendChild(h("circle", { class: "fhdot", cx: x(r.a), cy: y, r: 4 }));
+            var nt = h("text", { class: "fhlabel", x: x(r.a) + 10, y: y + 4 }, lab);
+            el.appendChild(nt); g.appendChild(el); // measured once in the page: the band and the SVG follow the label
+            var need = x(r.a) + 10 + nt.getComputedTextLength() + 14;
+            band.setAttribute("width", need - (x(r.a) - 14));
+            if (need > W) { W = need; g.setAttribute("viewBox", "0 0 " + W + " " + H); g.setAttribute("width", W); }
+          } else {
+            var dir = x(r.b) >= x(r.a) ? 1 : -1;
+            if (broken && !skipped) skipped = true;
+            else el.appendChild(h("line", { class: "fharrow", x1: x(r.a) + dir * 3, y1: y, x2: x(r.b) - dir * 3, y2: y, "marker-end": "url(#" + mkId + ")" }));
+            el.appendChild(h("text", { class: "fhlabel", x: (x(r.a) + x(r.b)) / 2, y: y - 7, "text-anchor": "middle" }, lab));
+          }
+          if (!el.parentNode) g.appendChild(el);
+          fhs.push(el);
+        });
+      }
+      function paintPicture() {
+        if (s.flowPicture === false) { fpic.style.display = "none"; return; }
+        fpic.style.display = "";
+        fhs.forEach(function (el) {
+          var i = +el.getAttribute("data-step");
+          el.setAttribute("class", "fh" + (el.classList.contains("note") ? " note" : "") + " " + (i < step ? "done" : i === step ? "cur" : "todo"));
+          var ar = el.querySelector(".fharrow");
+          if (ar) ar.setAttribute("marker-end", "url(#" + fpMk + (i === step ? "c" : "") + ")");
+        });
+        var c = fpic.querySelector(".fh.cur");
+        if (c && fpic.scrollWidth > fpic.clientWidth) {
+          var fr = fpic.getBoundingClientRect(), b = c.getBoundingClientRect();
+          fpic.scrollTo({ left: fpic.scrollLeft + (b.left + b.right) / 2 - (fr.left + fr.width / 2), behavior: reduce ? "auto" : "smooth" });
+        }
+      }
+      function show(i) {
+        if (i != null) step = i;
+        var st = cur.steps[step], path = st.path || [], now = performance.now();
+        hlNodes = {}; hlEdges = {}; clearTokens();
+        path.forEach(function (id, i) { hlNodes[id] = 1; if (i) { var k = edgeBetween(path[i - 1], id); if (k >= 0) { hlEdges[k] = 1; addToken(k, path[i - 1], id, carryOf(st), now); } } });
         svg.setAttribute("class", "walking");
         wCount.textContent = "Step " + (step + 1) + " of " + cur.steps.length;
         wText.innerHTML = md(st.text || "");
         back.disabled = step === 0; next.textContent = step === cur.steps.length - 1 ? "Done" : "Next";
         walk.style.display = "";
         paintSel();
+        paintPicture();
         // on a narrow screen the diagram scrolls sideways: bring the lit boxes into view
         var lit = [].slice.call(svg.querySelectorAll(".node.hl"));
         if (lit.length && stage.scrollWidth > stage.clientWidth) {
@@ -705,17 +897,17 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
         }
       }
       function stopWalk() {
-        cur = null; hlNodes = {}; hlEdges = {}; svg.removeAttribute("class"); walk.style.display = "none";
+        cur = null; hlNodes = {}; hlEdges = {}; clearTokens(); svg.removeAttribute("class"); walk.style.display = "none"; fpic.style.display = "none";
         flowBtns.forEach(function (b) { b.classList.remove("on"); }); paintSel();
       }
       flowBar = h("div", { class: "bar flows" }, h("span", { class: "barl" }, "How it works:"));
       s.flows.forEach(function (f) {
-        var b = h("button", { class: "chip", onclick: function () { cur = f; step = 0; flowBtns.forEach(function (x) { x.classList.toggle("on", x === b); }); show(); } }, f.label);
+        var b = h("button", { class: "chip", onclick: function () { cur = f; step = 0; flowPicture(f); flowBtns.forEach(function (x) { x.classList.toggle("on", x === b); }); show(); } }, f.label);
         flowBtns.push(b); flowBar.appendChild(b);
       });
     }
     if (presetBar.childNodes.length) presetBar.insertBefore(h("span", { class: "barl" }, "Try:"), presetBar.firstChild);
-    return [paras(s.body || []), h("div", { class: "card sim" }, flowBar, presetBar.childNodes.length ? presetBar : null, stage, walk, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
+    return [paras(s.body || []), h("div", { class: "card sim" }, flowBar, presetBar.childNodes.length ? presetBar : null, stage, walk, fpic, metricBar, ctrls.childNodes.length ? ctrls : null, detail, note)];
   };
 
   // ----- chart: a quantity as a curve -----
@@ -770,7 +962,8 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
       return { xs: xs, ys: ys };
     }
     function shown(v) { return isFinite(v) && (!Y.log || v > 0); }
-    function now(e) { return X.param && !e.y ? +val(e.expr, S.m, S.p[X.param]) : NaN; }
+    function now(e) { return X.param && !e.y ? +shownVal(e.expr, S.m, S.p[X.param]) : NaN; }
+    function liveOn(e) { return X.param && !e.y; }
 
     var svg = h("svg", { viewBox: "0 0 " + W + " " + Hh, role: "img", "aria-label": s.title || "chart" });
     clipRect = h("rect", { x: ML, y: MT - 3, width: PW, height: PH + 6 });
@@ -846,7 +1039,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
       legend.innerHTML = "";
       if (ser.length > 1 || X.param) ser.forEach(function (e, j) {
         var v = now(e);
-        legend.appendChild(h("span", null, h("i", { class: "s" + j }), e.label, isFinite(v) ? h("b", null, fmt(v, Y.fmt, Y.unit)) : null));
+        legend.appendChild(h("span", null, h("i", { class: "s" + j }), e.label, isFinite(v) ? h("b", null, fmt(v, Y.fmt, Y.unit)) : liveOn(e) && isNaN(v) ? h("b", null, h("span", { "data-na": "" }, "n/a")) : null));
       });
       legend.style.display = legend.childNodes.length ? "" : "none";
       table.innerHTML = "";
@@ -1122,6 +1315,7 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
     var theme = h("button", { onclick: function () { var d = document.documentElement; var t = d.dataset.theme === "dark" ? "light" : "dark"; d.dataset.theme = t; theme.textContent = t === "dark" ? "Light" : "Dark"; } }, "Dark");
     toc.appendChild(theme);
     root.appendChild(h("div", { class: "wrap" }, toc, main));
+    afterAttach.forEach(function (f) { f(); });
     document.title = SPEC.title + " | " + KIND[0];
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) { document.documentElement.dataset.theme = "dark"; theme.textContent = "Light"; }
     recompute();

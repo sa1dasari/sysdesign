@@ -240,3 +240,5 @@ i.s0{background:var(--s1)}i.s1{background:var(--s2)}i.s2{background:var(--s3)}i.
 .fpic .fh.cur .fharrow{stroke:var(--accent);stroke-width:2.6}
 .fpic .fh.cur .fhdot{fill:var(--accent)}
 .fpic .fh.cur .fhlabel{fill:var(--accent);font-weight:600}
+.fpic .fpmk{fill:var(--ink)}
+.fpic .fpmkcur{fill:var(--accent)}

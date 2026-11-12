@@ -544,10 +544,10 @@
       }
       function carryOf(st) { return st.carry || String(st.text || "").replace(/\*\*/g, "").split(/\s+/).filter(Boolean).slice(0, 3).join(" "); }
       // ----- the walkthrough as one sequence picture: a lifeline per box, an arrow per hop -----
-      var FL_GAP = 130, FL_TOP = 78, FL_ROW = 46;
+      var fpUid = 0, fpMk = "", FL_GAP = 130, FL_TOP = 78, FL_ROW = 46;
       function plain(t) { return String(t || "").replace(/\*\*/g, ""); }
       function flowPicture(flow) {
-        var ids = [], rows = [];
+        var mkId = fpMk = "fparrow" + (++fpUid), ids = [], rows = [];
         flow.steps.forEach(function (st, i) {
           var path = st.path || [];
           path.forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
@@ -557,7 +557,8 @@
         var W = Math.max(ids.length, 1) * FL_GAP, H = FL_TOP + rows.length * FL_ROW + 12;
         var x = function (id) { return FL_GAP / 2 + ids.indexOf(id) * FL_GAP; };
         var g = h("svg", { viewBox: "0 0 " + W + " " + H, width: W, height: H, role: "img", "aria-label": flow.steps.map(function (st) { return plain(st.text); }).join(" Then ") });
-        g.appendChild(h("defs", {}, h("marker", { id: "fparrow", viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, h("path", { d: "M0,0 L10,5 L0,10 z", fill: "context-stroke" }))));
+        var mk = function (id, cls) { return h("marker", { id: id, viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto" }, h("path", { class: cls, d: "M0,0 L10,5 L0,10 z" })); };
+        g.appendChild(h("defs", {}, mk(mkId, "fpmk"), mk(mkId + "c", "fpmk fpmkcur")));
         ids.forEach(function (id) {
           var n = (s.nodes || []).filter(function (q) { return q.id === id; })[0] || { id: id, label: id }, cx = x(id);
           var fl = h("g", { class: "fl", "data-node": id });
@@ -576,7 +577,7 @@
             el.appendChild(h("text", { class: "fhlabel", x: x(r.a) + 10, y: y + 4 }, lab));
           } else {
             var dir = x(r.b) >= x(r.a) ? 1 : -1;
-            el.appendChild(h("line", { class: "fharrow", x1: x(r.a) + dir * 3, y1: y, x2: x(r.b) - dir * 3, y2: y, "marker-end": "url(#fparrow)" }));
+            el.appendChild(h("line", { class: "fharrow", x1: x(r.a) + dir * 3, y1: y, x2: x(r.b) - dir * 3, y2: y, "marker-end": "url(#" + mkId + ")" }));
             el.appendChild(h("text", { class: "fhlabel", x: (x(r.a) + x(r.b)) / 2, y: y - 7, "text-anchor": "middle" }, lab));
           }
           g.appendChild(el); fhs.push(el);
@@ -589,6 +590,8 @@
         fhs.forEach(function (el) {
           var i = +el.getAttribute("data-step");
           el.setAttribute("class", "fh" + (el.classList.contains("note") ? " note" : "") + " " + (i < step ? "done" : i === step ? "cur" : "todo"));
+          var ar = el.querySelector(".fharrow");
+          if (ar) ar.setAttribute("marker-end", "url(#" + fpMk + (i === step ? "c" : "") + ")");
         });
         var c = fpic.querySelector(".fh.cur");
         if (c && fpic.scrollWidth > fpic.clientWidth) {

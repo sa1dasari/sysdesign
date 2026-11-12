@@ -105,3 +105,19 @@ test("picture has a text alternative", async () => {
     }
   });
 });
+
+test("arrow markers have unique ids and the current arrow uses the accent marker", async () => {
+  await withPage(miniSpec(), async (page) => {
+    await toStep(page, 1);
+    const r = await page.evaluate(() => {
+      const ids = [...document.querySelectorAll(".fpic marker")].map((m) => m.id);
+      const accent = document.querySelector(".fpic marker .fpmkcur").parentNode.id;
+      const all = [...document.querySelectorAll("[id]")].map((e) => e.id);
+      return { ids, accent, dup: all.length - new Set(all).size, cur: document.querySelector(".fpic .fh.cur .fharrow").getAttribute("marker-end"), todo: document.querySelector(".fpic .fh.todo .fharrow").getAttribute("marker-end") };
+    });
+    assert.equal(r.dup, 0);
+    assert.equal(new Set(r.ids).size, 2);
+    assert.equal(r.cur, `url(#${r.accent})`);
+    assert.notEqual(r.todo, r.cur);
+  });
+});

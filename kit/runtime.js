@@ -10,7 +10,7 @@
 
   // ---------- helpers ----------
   function h(tag, attrs) {
-    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan|clipPath)$/.test(tag);
+    var svg = /^(svg|g|path|rect|circle|line|text|marker|defs|polygon|tspan|clipPath|symbol|use|ellipse)$/.test(tag);
     var el = svg ? document.createElementNS(SVG, tag) : document.createElement(tag);
     if (attrs) for (var k in attrs) {
       var v = attrs[k];
@@ -23,6 +23,45 @@
     for (var i = 2; i < arguments.length; i++) add(el, arguments[i]);
     return el;
   }
+  // ---------- icons ----------
+  // 24x24 pictograms. Classes (styled in style.css) carry the colours so both themes work:
+  // p = panel fill + ink stroke, k = solid ink, a = warm accent, g = green accent, n = stroke only.
+  var ICONS = {
+    phone: '<rect class="p" x="6" y="2" width="12" height="20" rx="2.5"/><rect class="m" x="8" y="5" width="8" height="12" rx="1"/><circle class="k" cx="12" cy="19.3" r="1"/>',
+    browser: '<rect class="p" x="2.5" y="4" width="19" height="16" rx="2"/><path class="n" d="M2.5 9h19"/><circle class="a" cx="5.5" cy="6.5" r=".9"/><circle class="g" cx="8.5" cy="6.5" r=".9"/>',
+    user: '<circle class="p" cx="12" cy="8" r="4"/><path class="p" d="M4 21c0-4.5 3.6-7 8-7s8 2.5 8 7z"/>',
+    server: '<rect class="p" x="3" y="3" width="18" height="7" rx="1.5"/><rect class="p" x="3" y="14" width="18" height="7" rx="1.5"/><circle class="g" cx="7" cy="6.5" r="1.2"/><circle class="g" cx="7" cy="17.5" r="1.2"/>',
+    worker: '<path class="p" d="M12 2l2 3 3.5-1 .5 3.6 3.4 1.2-1.6 3.2 1.6 3.2-3.4 1.2-.5 3.6-3.5-1-2 3-2-3-3.5 1-.5-3.6-3.4-1.2L4.1 12 2.5 8.8l3.4-1.2L6.4 4l3.5 1z" stroke-width="1.4"/><circle class="m" cx="12" cy="12" r="3.4" stroke-width="1.4"/>',
+    queue: '<rect class="p" x="2" y="7" width="5" height="10" rx="1"/><rect class="p" x="9.5" y="7" width="5" height="10" rx="1"/><rect class="a" x="17" y="7" width="5" height="10" rx="1"/>',
+    cache: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3"/><path class="a" d="M13 9l-4 6h3l-1 4 4-6h-3z" stroke-width=".8"/>',
+    database: '<path class="p" d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><ellipse class="m" cx="12" cy="6" rx="8" ry="3"/><path class="n" d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" stroke-width="1.2"/>',
+    storage: '<path class="p" d="M3 8l2-4h14l2 4v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path class="n" d="M3 8h18"/><rect class="a" x="9" y="11" width="6" height="3" rx="1"/>',
+    batch: '<rect class="p" x="3" y="13" width="18" height="7" rx="1.5"/><rect class="p" x="3" y="8" width="18" height="4" rx="1.2"/><rect class="a" x="3" y="3.5" width="18" height="3.5" rx="1.2"/>',
+    lock: '<path class="n" d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3"/><rect class="p" x="4.5" y="11" width="15" height="10" rx="2"/><circle class="a" cx="12" cy="16" r="1.5"/>',
+    globe: '<circle class="p" cx="12" cy="12" r="9"/><ellipse class="n" cx="12" cy="12" rx="4" ry="9" stroke-width="1.2"/><path class="n" d="M3 12h18" stroke-width="1.2"/><circle class="g" cx="12" cy="12" r="1.4"/>',
+    search: '<circle class="p" cx="10.5" cy="10.5" r="6.5"/><path class="n" d="M15.5 15.5L21 21" stroke-width="2.4"/><circle class="a" cx="10.5" cy="10.5" r="2"/>',
+    mail: '<rect class="p" x="2.5" y="5" width="19" height="14" rx="2"/><path class="n" d="M3 7l9 7 9-7"/><circle class="a" cx="18.5" cy="6" r="2.6"/>'
+  };
+  function iconFor(n) {
+    if (n.icon && ICONS[n.icon]) return n.icon;
+    var k = n.kind || "";
+    if (k === "clients") return "phone";
+    if (k === "cache") return "cache";
+    if (k === "store") return "database";
+    if (k === "queue") return "queue";
+    if (k.indexOf("batch") >= 0) return "batch";
+    return "server";
+  }
+  function iconDefs() {
+    var d = h("defs");
+    Object.keys(ICONS).forEach(function (name) {
+      var sy = h("symbol", { id: "ico-" + name, viewBox: "0 0 24 24" });
+      sy.innerHTML = ICONS[name];
+      d.appendChild(sy);
+    });
+    return d;
+  }
+  var iconsPlaced = false, afterAttach = []; // afterAttach: work that needs the page laid out (text measuring)
   function add(el, c) {
     if (c == null || c === false) return;
     if (Array.isArray(c)) c.forEach(function (x) { add(el, x); });
@@ -319,7 +358,7 @@
   builders.arch = function (s) {
     // Layout: columns follow the flow (depth from the sources) unless a node sets `col`;
     // rows stack within a column unless a node sets `row`. `group` puts nodes in a labelled lane.
-    var groups = s.groups || [], NW = 152, NH = 60, GX = 72, GY = groups.length ? 62 : 30, PAD = 20, TOP = groups.length ? 40 : PAD;
+    var groups = s.groups || [], NW = 152, NH = 68, GX = 72, GY = groups.length ? 62 : 30, PAD = 20, TOP = groups.length ? 40 : PAD;
     var nodes = s.nodes, by = {}, depth = {};
     nodes.forEach(function (n) { by[n.id] = n; depth[n.id] = 0; });
     for (var pass = 0; pass < nodes.length; pass++) s.edges.forEach(function (e) { depth[e.to] = Math.max(depth[e.to], depth[e.from] + 1); });
@@ -336,6 +375,7 @@
     nodes.forEach(function (n) { W = Math.max(W, n._x + NW + PAD); Ht = Math.max(Ht, n._y + NH + PAD + (groups.length ? 14 : 0)); });
     var svg = h("svg", { viewBox: "0 0 " + W + " " + Ht, role: "img", "aria-label": s.title || "architecture" });
     var laneG = h("g"), edgeG = h("g"), nodeG = h("g"), dotG = h("g");
+    if (!iconsPlaced) { svg.appendChild(iconDefs()); iconsPlaced = true; }
     [laneG, edgeG, dotG, nodeG].forEach(function (g) { svg.appendChild(g); });
     groups.forEach(function (gr) {
       var mem = nodes.filter(function (n) { return n.group === gr.id; });
@@ -367,16 +407,36 @@
       edgeG.appendChild(path); if (lab) edgeG.appendChild(lab);
       return { path: path, len: 0, dots: [], e: e, lab: lab };
     });
-    var nodeEls = {};
+    var nodeEls = {}, labelJobs = [];
     var selected = null, detail = h("dl", { class: "detail", style: "display:none" });
     nodes.forEach(function (n) {
-      var g = h("g", { class: "node", tabindex: 0, role: "button", "aria-label": n.label }), sub = h("text", { class: "s", x: n._x + 12, y: n._y + 41 }), ub = h("rect", { class: "ubar", x: n._x + 10, y: n._y + NH - 9, height: 3, width: 0, rx: 1.5 });
+      var g = h("g", { class: "node", tabindex: 0, role: "button", "aria-label": n.label }), sub = h("text", { class: "s", x: n._x + 12, y: n._y + 53 }), ub = h("rect", { class: "ubar", x: n._x + 10, y: n._y + NH - 9, height: 3, width: 0, rx: 1.5 });
       g.appendChild(h("rect", { class: "box", x: n._x, y: n._y, width: NW, height: NH, style: "--u:0" }));
-      g.appendChild(h("text", { x: n._x + 12, y: n._y + 23 }, n.label)); g.appendChild(sub); g.appendChild(ub);
+      g.appendChild(h("use", { class: "ico", href: "#ico-" + iconFor(n), x: n._x + 10, y: n._y + 9, width: 26, height: 26, "aria-hidden": "true" }));
+      var lx = n._x + 44, nl = h("text", { class: "nl", x: lx, y: n._y + 27 }, n.label);
+      g.appendChild(nl); g.appendChild(sub); g.appendChild(ub);
+      labelJobs.push({ el: nl, label: n.label, x: lx, y: n._y });
       var pick = function () { selected = selected === n.id ? null : n.id; paintDetail(); paintSel(); };
       g.addEventListener("click", pick); g.addEventListener("keydown", function (ev) { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); pick(); } });
       nodeG.appendChild(g); nodeEls[n.id] = { g: g, sub: sub, ub: ub, box: g.firstChild };
     });
+    // Labels are measured once the SVG is in the page; one that overflows wraps to two 13px lines.
+    function fitLabels() {
+      labelJobs.forEach(function (j) {
+        if (j.el.getComputedTextLength() <= NW - 54) return;
+        var words = j.label.split(" "), best = 1, bestGap = Infinity, mid = j.label.length / 2, pos = 0;
+        for (var i = 0; i < words.length - 1; i++) {
+          pos += words[i].length;
+          if (Math.abs(pos - mid) < bestGap) { bestGap = Math.abs(pos - mid); best = i + 1; }
+          pos += 1;
+        }
+        j.el.textContent = ""; j.el.setAttribute("class", "nl two");
+        [words.slice(0, best).join(" "), words.slice(best).join(" ")].forEach(function (line, k) {
+          j.el.appendChild(h("tspan", { x: j.x, y: j.y + 21 + k * 15 }, line));
+        });
+      });
+    }
+    afterAttach.push(fitLabels);
     var hlNodes = {}, hlEdges = {}; // what the current walkthrough step lights up
     function paintSel() {
       nodes.forEach(function (n) { nodeEls[n.id].g.setAttribute("class", "node" + (selected === n.id ? " sel" : "") + (hlNodes[n.id] ? " hl" : "") + (S.m && S.m.nodes[n.id].total === 0 ? " dead" : "")); });
@@ -387,7 +447,7 @@
       if (!selected) { detail.style.display = "none"; return; }
       var n = by[selected], r = S.m && S.m.nodes[selected]; detail.style.display = "grid";
       var rows = [["Role", n.role], ["Why it's here", n.why], ["Scales by", n.scale], ["Fails by", n.fails]];
-      if (r) rows.push(["Load now", si(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + si(r.total) + " capacity (" + Math.round(r.util * 100) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + si(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + si(r.growth) + "/s" : "")]);
+      if (r) rows.push(["Load now", r.total === 0 ? "down, " + si(r.inflow) + " req/s arriving with no capacity to take them" : si(r.inflow) + " req/s in" + (r.total !== Infinity ? " of " + si(r.total) + " capacity (" + Math.round(r.util * 100) + "%)" : "") + (r.shed > 0.5 ? ", shedding " + si(r.shed) + "/s" : "") + (r.growth ? ", backlog growing " + si(r.growth) + "/s" : "")]);
       rows.forEach(function (x) { if (x[1]) { detail.appendChild(h("dt", null, x[0])); detail.appendChild(h("dd", { html: md(x[1]) })); } });
     }
     var metricEls = {}, metricBar = h("div", { class: "metrics" });
@@ -420,7 +480,7 @@
       var m = S.m; if (!m) return;
       nodes.forEach(function (n) {
         var r = m.nodes[n.id], el = nodeEls[n.id];
-        el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util * 0.35, 0, 0.9));
+        el.box.setAttribute("style", "--u:" + clamp(r.util > 1 ? 0.55 + Math.min(r.util - 1, 1) * 0.35 : r.util < 0.75 ? 0 : r.util * 0.35, 0, 0.9));
         var txt = r.total === Infinity ? (n.kind || "") : r.total === 0 ? "DOWN" : r.inst + "× " + si(r.cap) + "/s";
         if (n.hit != null) txt = Math.round(r.hit * 100) + "% hit";
         if (n.rps != null && r.total === Infinity) txt = si(r.inflow) + "/s";
@@ -900,6 +960,7 @@
     var theme = h("button", { onclick: function () { var d = document.documentElement; var t = d.dataset.theme === "dark" ? "light" : "dark"; d.dataset.theme = t; theme.textContent = t === "dark" ? "Light" : "Dark"; } }, "Dark");
     toc.appendChild(theme);
     root.appendChild(h("div", { class: "wrap" }, toc, main));
+    afterAttach.forEach(function (f) { f(); });
     document.title = SPEC.title + " | " + KIND[0];
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) { document.documentElement.dataset.theme = "dark"; theme.textContent = "Light"; }
     recompute();

@@ -90,6 +90,10 @@ table.cols td.nt{color:var(--mute);font-family:var(--sans);font-size:12px}
 .node.sel rect.box{stroke:var(--accent);stroke-width:2.4}
 .node.dead rect.box{stroke:var(--hot);stroke-dasharray:4 3}
 .node text{fill:var(--ink);font:600 14px var(--sans);pointer-events:none}
+.node text.nl.two{font-size:13px}
+symbol .p,symbol .m,symbol .n,symbol .a,symbol .g,symbol .k{stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+symbol .p{fill:var(--panel)}symbol .m{fill:var(--line)}symbol .n{fill:none}
+symbol .a{fill:var(--warm)}symbol .g{fill:var(--cool)}symbol .k{fill:var(--ink)}
 .node text.s{font:12px var(--mono);fill:var(--mute)}
 .node:hover rect.box{stroke:var(--accent)}
 .node{cursor:pointer}

@@ -20,9 +20,12 @@ export async function buildSpec(spec, name = "spec") {
 export async function openPage(htmlPath, { width = 1280, reducedMotion = false } = {}) {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: reducedMotion ? "reduce" : "no-preference" });
-  const page = await context.newPage();
-  await page.goto(pathToFileURL(htmlPath).href);
-  await page.waitForFunction(() => document.body.dataset.ready === "1" || document.body.dataset.error);
+  let page;
+  try {
+    page = await context.newPage();
+    await page.goto(pathToFileURL(htmlPath).href);
+    await page.waitForFunction(() => document.body.dataset.ready === "1" || document.body.dataset.error);
+  } catch (e) { await browser.close(); throw e; }
   return {
     page,
     close: () => browser.close(),
@@ -33,6 +36,7 @@ export async function openPage(htmlPath, { width = 1280, reducedMotion = false }
 export function runCheck(htmlPath, args = []) {
   const r = spawnSync(process.execPath, [join(root, "scripts/check.mjs"), htmlPath, ...args], {
     encoding: "utf8",
+    timeout: 60000,
     env: { ...process.env, CHROME: process.env.CHROME || chromium.executablePath() },
   });
   return { code: r.status ?? 1, out: (r.stdout || "") + (r.stderr || "") };

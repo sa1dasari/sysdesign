@@ -6,7 +6,7 @@ A Claude Code skill that explains a system design topic as a live page you can p
 
 **[Try the live examples](https://sa1dasari.github.io/sysdesign/)**, no install needed.
 
-![Stepping through "You open your feed": the lit path, a labelled token on the arrow, and the step explained in one sentence](docs/img/news-feed.png)
+![Stepping through two walkthroughs on the news feed page: the lit path, a labelled token moving along each arrow, and one plain sentence per step](docs/img/walkthrough.gif)
 
 Ask about any topic and get one self-contained HTML file. Claude works out which views the topic needs and puts them on one page:
 

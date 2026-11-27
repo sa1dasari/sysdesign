@@ -2,6 +2,12 @@
 
 A Claude Code skill that explains a system design topic as a live page you can poke.
 
+[![CI](https://github.com/sa1dasari/sysdesign/actions/workflows/ci.yml/badge.svg)](https://github.com/sa1dasari/sysdesign/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**[Try the live examples](https://sa1dasari.github.io/sysdesign/)**, no install needed.
+
+![Stepping through "You open your feed": the lit path, a labelled token on the arrow, and the step explained in one sentence](docs/img/news-feed.png)
+
 Ask about any topic and get one self-contained HTML file. Claude works out which views the topic needs and puts them on one page:
 
 - **System view (HLD)**, when the topic runs on many machines: an architecture diagram in labelled lanes, walkthroughs that light up how a request or an event moves step by step, and changes you can try ("turn off nearline", "a celebrity posts") while the page shows what users would notice. Click a box to see why it exists. Boxes have icons, a labelled token moves along each arrow as you step through, and a picture of the whole walkthrough sits under the diagram. Capacity math that recomputes as you drag is there for going deeper.
@@ -14,7 +20,7 @@ Every number on a page comes from one small model the page runs, so prose, table
 
 ## Examples
 
-Open these in a browser:
+Open the [live gallery](https://sa1dasari.github.io/sysdesign/), or open these files in a browser:
 
 - `examples/news-feed/index.html` (HLD)
 - `examples/parking-lot/index.html` (LLD)
@@ -65,5 +71,15 @@ Needs Node 20.10+. Chrome or Chromium is used by `scripts/check.mjs` (found on P
 The simulator is a steady-state fluid model with M/M/1-shaped latency. It shows which tier saturates first and what users feel. It is not a production performance predictor.
 
 `node --test` runs the tests in `tests/`; they need Playwright.
+
+## Limits
+
+- The simulator is a steady-state model. It shows which tier saturates first, not production numbers.
+- Claude writes each spec, so a page can contain a wrong claim about a real product. The checks catch broken pages and contradicting numbers, not factual errors. Treat sources as something to verify.
+- Needs a machine that can run Node. It does not run in a plain chat window.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md). Found a page that is wrong or broken? Use the "Wrong or broken page" issue template.
 
 MIT licensed.
